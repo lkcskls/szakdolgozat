@@ -35,39 +35,65 @@ Ideális lehet kisebb cégeknek, szervezeteknek saját fájlok biztonságos tár
 - POST: /register
 - POST: /login
 - POST: /logout
-- /list-files/{filter}
-- /upload/
-- /download/{filename}
-- /delete/{filename]
-- /switch-algo
+- GET: /user/{user_id}
+- PUT: /user
+- GET: /files/{filter}
+- DEL: /files/{filename}
+- POST: /upload
+- GET: /download/{filename} 
+- GET: /algos
+- POST: /switch-algo
 
 ## Szerveroldali végpontok feladatai:
-### /register
+### POST: /register
 - Felhasználói adatok hozzáadása az adatbázishoz.
 - Megadott adatok ellenőrzése, type-check
 - Megadható egy biztonsági email is
+- Generálódik egy backup kulcs, amit a felhasználó szintén elmenthet vagy letölthet, ennek csak a hashelt változata tárolódik a USER.backup_key_hash mezőben. Elfelejtett jelszó esetén
 - Regisztráció után:
   - Auto login
   - Default algoritmussal generál egy kulcsot, amit a felhasználó elmenthet egy jelszókezelőbe, vagy letöltheti egy autentikációs fájlként*.
     - *autentikációs fájl: a szerver a saját kulcsával titkosítja a felhasználó kulcsát, és ezt egy .txt fájlként letöltheti a felhasználó. Amikor ki akarja titkosítani a fájljait, akkor elég csak feltöltenie ezt a fájlt.
     - a felhasználó által generált/cserélt kulcsok száma az adatbázisban tárolódik, és az autentikációs fájl neve is attól függ, hogy hányadik generált kulcs, pl.: key_6.txt. És a felhasználói felület is valahogy utalna rá, hogy a 6-nak generált kulcsot kell, hogy megadja a felhasználó. Ezáltal tudni lehet, hogy melyik kulcs elavult, melyik nem, a fájl nevéből. 
 - Response: user | error
-### /login
+### POST: /login
 - Megadott adatok ellenőrzése, type-check
 - Megadott adatok összevetése az adatbázissal
 - Siker esetén jwt token generálás
 - Egy rövid timer
 - Response: token, user | error
-### /logout
+### POST: /logout
 - AUTENTIKÁCIÓ
 - token érvénytelenítése
 - Response: message | error
-### /list-files/{filter}
+### GET: /user/{user_id}
 - AUTENTIKÁCIÓ
-- Felhasználó fájljainak kilistázása a mappájából
+- Visszaadja a felhasználó adatait
+- Response: user | error
+### PUT: /user
+- AUTENTIKÁCIÓ
+- Felhasználói adatok felülírása a kapott adatokkal.
+- Felülírható:
+  - név
+  - email
+  - second_email
+  - password
+  - algo
+- Visszaadja a felhasználót az új adatokkal
+- Response: user | error
+### GET: /files/{filter}
+- AUTENTIKÁCIÓ
+- Felhasználó fájljainak kilistázása a mappájából a szűrőfeltételeknek megfelelően
 - Szűrő: - | kiterjesztés | fájlnév
 - Response: message, [files] | error
-### /upload
+### DEL: /files/{filename}
+- AUTENTIKÁCIÓ
+- Törli a fájlt, ha létezik.
+- Ha a fájl titkosítva van, bekéri a kulcsot a felhasználótól.
+- Választható soft-delete vagy hard delete, default: soft delete
+  - soft: a felhasználó ".trash" mappájába kerül, x napon belül még visszaállítható, utána hard delete
+  - hard: a fájl tárolási helye felülíródik 0 bitekkel, hogy ne lehessen visszaállítani
+### POST: /upload
 - AUTENTIKÁCIÓ
 - Egy vagy több fájl is átadható
 - Kapott fájlok ellenőrzése, pl.: létezik-e már ilyen nevű és kiterjesztésű fájl, fájlméret...
@@ -79,20 +105,18 @@ Ideális lehet kisebb cégeknek, szervezeteknek saját fájlok biztonságos tár
   - Fontos, hogy a felhasználó összes titkosított fájlja egy kulccsal és algoritmussal legyen titkosítva   
 - Force opció, ez fájlnév ütközés esetén újranevezi az új fájlt
 - Response: message, skey | error
-### /download/{filename]
+### GET: /download/{filename}
 - AUTENTIKÁCIÓ
 - Egy fájl visszaadására szolgál, (fastAPI.responses.FileResponse)
 - Választható, hogy titkosítva vagy kititkosítva adja vissza a fájlt
 - Ha több fájl kell, akkor kliens oldalon többször hívjuk ezt a végpontot
 - Response: message, FileResponse | error
-### /delete/{filename]
+### GET: /algos
 - AUTENTIKÁCIÓ
-- Törli a fájlt, ha létezik.
-- Ha a fájl titkosítva van, bekéri a kulcsot a felhasználótól.
-- Választható soft-delete vagy hard delete, default: soft delete
-  - soft: a felhasználó ".trash" mappájába kerül, x napon belül még visszaállítható, utána hard delete
-  - hard: a fájl tárolási helye felülíródik 0 birekkel, hogy ne lehessen visszaállítani
-### /switch-algo
+- Visszaadja a szerveroldalon engedélyezett algoritmusok listáját, kulcs-érték páronként
+- A kulcs az algo neve, az érték pedig egy becsült relatív biztonság
+- Response: list[key-value] | error
+### POST: /switch-algo
 - AUTENTIKÁCIÓ
 - !Összetett művelet, kifejezetten figyelmesen kell megírni, hogy a fájlok ne sérülhessenek!
 - Adatbázisban tárolódik a felhasználó által választott algoritmus
@@ -116,6 +140,9 @@ A felhasználó által titkosított fájlok mindig egy algoritmussal, és egy ku
 - has_key: boolean # nem biztos, hogy kell, lehet egyszerűbb, ha sokat van használva, de a key_numberből lehet tudni
 - key_number: int = 0
 - encrypted_files: list[str #file_names] | None #json-ként tárolva, feltöltés után a fájlnév nem módosítható!
+
+## .env
+- ALGOS=["AES_128", "AES_256"]
 
 # Gondolkodtató:
 - Mi legyen, ha a felhasználónak van kulcsa, de nincs titkosított fájlja? - Régi kulcs használata, hogy konzisztens legyen
