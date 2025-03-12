@@ -1,2 +1,133 @@
-# szakdolgozat
-Poszt-kvantum kriptográfiával védett fájltároló webszerver
+# Szakdolgozat
+### Poszt-kvantum kriptográfiával védett fájltároló webszerver
+A szerver működése kisebb felhasználószámra van optimalizálva, nagyobb felhasználószámnál a session alapú autentikáció kevésbé hatékonyan skálázható, kisebb méretben azonban biztonsági előnyei vannak.
+Ideális lehet kisebb cégeknek, szervezeteknek saját fájlok biztonságos tárolására, esetleg családi felhasználásra.
+
+## Követelmények a témabejelentő alapján:
+- Felhasználói fiók
+  - Regisztáció
+  - Bejelentkezés
+  - Kijelentkezés
+- Fájlkezelés
+  - Feltöltés
+  - Letöltés
+  - Titkosított tárolás
+- Szerver
+  - Poszt-kvantum kulcscsere (nem kell, hogy módosítható legyen)
+  - Titkosító algoritmus választható (csak a felhasználó fájljaira vonatkozik)
+
+## Használt technológiák:
+- Backend: fastAPI
+- Frontend: Next.js
+- Database: ? Supabase PostgerSQL (felhasználók tárolására)
+- Fájltárolás: ? Supabase Storage
+- (Gyorsítótár: Redis)
+
+## Előkövetelmények (liboqs-python)
+[https://github.com/open-quantum-safe/liboqs-python]
+- liboqs
+- git
+- CMkake
+- C compiler
+- Python 3
+
+## Szükséges végpontok:
+- POST: /register
+- POST: /login
+- POST: /logout
+- /list-files/{filter}
+- /upload/
+- /download/{filename}
+- /delete/{filename]
+- /switch-algo
+
+## Szerveroldali végpontok feladatai:
+### /register
+- Felhasználói adatok hozzáadása az adatbázishoz.
+- Megadott adatok ellenőrzése, type-check
+- Megadható egy biztonsági email is
+- Regisztráció után:
+  - Auto login
+  - Default algoritmussal generál egy kulcsot, amit a felhasználó elmenthet egy jelszókezelőbe, vagy letöltheti egy autentikációs fájlként*.
+    - *autentikációs fájl: a szerver a saját kulcsával titkosítja a felhasználó kulcsát, és ezt egy .txt fájlként letöltheti a felhasználó. Amikor ki akarja titkosítani a fájljait, akkor elég csak feltöltenie ezt a fájlt.
+    - a felhasználó által generált/cserélt kulcsok száma az adatbázisban tárolódik, és az autentikációs fájl neve is attól függ, hogy hányadik generált kulcs, pl.: key_6.txt. És a felhasználói felület is valahogy utalna rá, hogy a 6-nak generált kulcsot kell, hogy megadja a felhasználó. Ezáltal tudni lehet, hogy melyik kulcs elavult, melyik nem, a fájl nevéből. 
+- Response: user | error
+### /login
+- Megadott adatok ellenőrzése, type-check
+- Megadott adatok összevetése az adatbázissal
+- Siker esetén jwt token generálás
+- Egy rövid timer
+- Response: token, user | error
+### /logout
+- AUTENTIKÁCIÓ
+- token érvénytelenítése
+- Response: message | error
+### /list-files/{filter}
+- AUTENTIKÁCIÓ
+- Felhasználó fájljainak kilistázása a mappájából
+- Szűrő: - | kiterjesztés | fájlnév
+- Response: message, [files] | error
+### /upload
+- AUTENTIKÁCIÓ
+- Egy vagy több fájl is átadható
+- Kapott fájlok ellenőrzése, pl.: létezik-e már ilyen nevű és kiterjesztésű fájl, fájlméret...
+- Feltölti a fájlt a felhasználó mappájába, és csakis oda
+- Választható a titkosított tárolás
+  - A szerver végzi a titkosítást, ha már van generálva kulcs (adatbázisban tároljok, hogy igen/nem), akkor azt meg kell adnia a felhasználónak a body-ban.
+  - Ha titkosított a tárolás, és még nincs kulcs, a generált kulcsot visszaadjuk
+  - A fájl neve hozzáadódik a USER.encrypted_files mezőjéhez
+  - Fontos, hogy a felhasználó összes titkosított fájlja egy kulccsal és algoritmussal legyen titkosítva   
+- Force opció, ez fájlnév ütközés esetén újranevezi az új fájlt
+- Response: message, skey | error
+### /download/{filename]
+- AUTENTIKÁCIÓ
+- Egy fájl visszaadására szolgál, (fastAPI.responses.FileResponse)
+- Választható, hogy titkosítva vagy kititkosítva adja vissza a fájlt
+- Ha több fájl kell, akkor kliens oldalon többször hívjuk ezt a végpontot
+- Response: message, FileResponse | error
+### /delete/{filename]
+- AUTENTIKÁCIÓ
+- Törli a fájlt, ha létezik.
+- Ha a fájl titkosítva van, bekéri a kulcsot a felhasználótól.
+- Választható soft-delete vagy hard delete, default: soft delete
+  - soft: a felhasználó ".trash" mappájába kerül, x napon belül még visszaállítható, utána hard delete
+  - hard: a fájl tárolási helye felülíródik 0 birekkel, hogy ne lehessen visszaállítani
+### /switch-algo
+- AUTENTIKÁCIÓ
+- !Összetett művelet, kifejezetten figyelmesen kell megírni, hogy a fájlok ne sérülhessenek!
+- Adatbázisban tárolódik a felhasználó által választott algoritmus
+- Ha a felhasználó megváltoztatja, bekéri tőle a korábban (vagy default) generált kulcsot.
+- A felhasználó kulcsával kititkosítja a titkosított fájlokat
+- Generál egy új kulcsot a felhasználónak
+- Letitkosítja a felhasználó korábban is titkosított fájljait
+- Visszaadja a felhasználónak az új kulcsot, és az újratitkosított fájlok listáját.
+- Response: message, skey, [files] | error
+
+## Adatbázis
+### USER tábla
+A felhasználó által titkosított fájlok mindig egy algoritmussal, és egy kulccsal vannak titkosítva. Ellenkező esetben követhetetlen lenne, hogy melyik kulcs, melyik fájlhoz, és melyik algoritmushoz tartozik. Ezért kell a /switch-algo végponton algo cserénél újratitkosítani mindent
+- id: int (key)
+- name: str
+- email: str
+  - second_email: str | None
+- password_hash: str
+- backup_key_hash: str
+- algo: str
+- has_key: boolean # nem biztos, hogy kell, lehet egyszerűbb, ha sokat van használva, de a key_numberből lehet tudni
+- key_number: int = 0
+- encrypted_files: list[str #file_names] | None #json-ként tárolva, feltöltés után a fájlnév nem módosítható!
+
+# Gondolkodtató:
+- Mi legyen, ha a felhasználónak van kulcsa, de nincs titkosított fájlja? - Régi kulcs használata, hogy konzisztens legyen
+
+## Fejelsztési potenciál
+- mappaszerkezet létrehozása
+- mappák megosztása
+- felhasználói jogosultságkezelés
+- autentikációs fájl
+- feltöltés után módosítható fájlnevek
+- választható soft vagy hard delete
+
+
+  
+  
