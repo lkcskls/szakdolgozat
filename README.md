@@ -23,15 +23,12 @@ Ideális lehet kisebb cégeknek, szervezeteknek saját fájlok biztonságos tár
 - Fájltárolás: ? Supabase Storage
 - (Gyorsítótár: Redis)
 
-## Előkövetelmények (liboqs-python)
-[https://github.com/open-quantum-safe/liboqs-python]
-- liboqs
-- git
-- CMkake
-- C compiler
-- Python 3
+## Poszt-kvantum kulcscsere:
+Open Quantum Safe OpenSSL provider-én keresztül.
+[https://openquantumsafe.org/applications/tls.html#oqs-openssl-provider]
+[https://github.com/open-quantum-safe/oqs-provider]
 
-## Szükséges végpontok:
+## Szükséges szerveroldali végpontok:
 - POST: /register
 - POST: /login
 - POST: /logout
@@ -55,7 +52,7 @@ Ideális lehet kisebb cégeknek, szervezeteknek saját fájlok biztonságos tár
   - Default algoritmussal generál egy kulcsot, amit a felhasználó elmenthet egy jelszókezelőbe, vagy letöltheti egy autentikációs fájlként*.
     - *autentikációs fájl: a szerver a saját kulcsával titkosítja a felhasználó kulcsát, és ezt egy .txt fájlként letöltheti a felhasználó. Amikor ki akarja titkosítani a fájljait, akkor elég csak feltöltenie ezt a fájlt.
     - a felhasználó által generált/cserélt kulcsok száma az adatbázisban tárolódik, és az autentikációs fájl neve is attól függ, hogy hányadik generált kulcs, pl.: key_6.txt. És a felhasználói felület is valahogy utalna rá, hogy a 6-nak generált kulcsot kell, hogy megadja a felhasználó. Ezáltal tudni lehet, hogy melyik kulcs elavult, melyik nem, a fájl nevéből. 
-- Response: user | error
+- Response: user, backup_key | error
 ### POST: /login
 - Megadott adatok ellenőrzése, type-check
 - Megadott adatok összevetése az adatbázissal
