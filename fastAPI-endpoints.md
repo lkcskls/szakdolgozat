@@ -9,7 +9,7 @@
   - password_hash: str
   - backup_key_hash: str
   - algo: str
-  - has_key: boolean
+  - has_key: bool
   - key_number: int
   - encrypted_files: list[str]
 #### RESPONSE:

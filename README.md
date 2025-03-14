@@ -151,7 +151,7 @@ A felhasználó által titkosított fájlok mindig egy algoritmussal, és egy ku
 - autentikációs fájl
 - feltöltés után módosítható fájlnevek
 - választható soft vagy hard delete
-
+- email ellenőrzése kóddal, authentikátorok használata
 
   
   

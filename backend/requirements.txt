@@ -1,0 +1,31 @@
+# FastAPI és ASGI szerver
+fastapi
+uvicorn
+pyjwt
+
+# .env fájl olvasására
+dotenv
+
+# Redis gyorsítótárazás
+redis
+#httpx
+
+# Elasticsearch keresőmotor
+#elasticsearch
+
+# JSON feldolgozás gyorsítása
+#orjson  # Opcionális, de FastAPI támogatja, gyorsabb mint a beépített json modul
+
+# CORS kezelés (ha a frontend külön szerveren van)
+#fastapi-cors
+
+# Adatbázis kezelés PostgreSQL-hez
+supabase
+#psycopg2-binary
+#sqlalchemy
+#asyncpg
+#alembic  # Opcionális, ha adatbázis migrációt szeretnél
+
+# Adatmodellezés és validáció
+pydantic
+pydantic[email]
