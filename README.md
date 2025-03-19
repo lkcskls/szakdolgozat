@@ -152,6 +152,10 @@ A felhasználó által titkosított fájlok mindig egy algoritmussal, és egy ku
 - feltöltés után módosítható fájlnevek
 - választható soft vagy hard delete
 - email ellenőrzése kóddal, authentikátorok használata
+- már a felhasználói oldalon megtörténik a titkosítás, és így töltődik fel a szerverre, így nem kell bízni a szerverben sem
+
+## Jegyzetek:
+felhasználó kulcsának tárolására txt helyett: one password
 
   
   
