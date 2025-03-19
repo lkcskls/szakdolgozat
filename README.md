@@ -133,6 +133,7 @@ A felhasználó által titkosított fájlok mindig egy algoritmussal, és egy ku
   - second_email: str | None
 - password_hash: str
 - backup_key_hash: str
+- user_key_hash: str # a usernek adott kulcs hashe, amivel ellenőrizni lehet, hogy jó kulcsot adott-e meg
 - algo: str
 - has_key: boolean # nem biztos, hogy kell, lehet egyszerűbb, ha sokat van használva, de a key_numberből lehet tudni
 - key_number: int = 0
