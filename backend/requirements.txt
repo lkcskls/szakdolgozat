@@ -29,3 +29,8 @@ supabase
 # Adatmodellezés és validáció
 pydantic
 pydantic[email]
+
+# biztonság
+bcrypt
+itsdangerous
+python-multipart
