@@ -2,6 +2,8 @@
 ########## IMPORTS
 ####
 
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
 from supabase import create_client, Client
 from pydantic import BaseModel, EmailStr
@@ -11,9 +13,11 @@ from fastapi import FastAPI, HTTPException, Depends, status, Security, Response,
 from dotenv import load_dotenv
 from typing import Optional, List
 from redis import Redis
+from pathlib import Path
 import secrets
 import shutil
 import json
+import uuid
 import os
 
 
@@ -22,14 +26,20 @@ import os
 ####
 
 load_dotenv()
-SUPABASE_URL= os.getenv('SUPABASE_URL')
-SUPABASE_KEY= os.getenv('SUPABASE_KEY')
-DEFAULT_ALGO = 'AES_256'
-
+SUPABASE_URL    = os.getenv('SUPABASE_URL')
+SUPABASE_KEY    = os.getenv('SUPABASE_KEY')
+DEFAULT_ALGO    = 'AES_256'
+UPLOADS_DIR     = Path("uploads")
 
 #######
 ########## SCHEMAS
 ####
+
+class RegisterRequest(BaseModel):
+    name: str
+    email: EmailStr
+    second_email: EmailStr
+    password: str
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -81,6 +91,17 @@ def generate_unique_filename(file_name: str) -> str:
     name, ext = os.path.splitext(file_name)
     return f"{name}_{timestamp}{ext}"
 
+def authenticate_user(session_token: str) -> int:
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    session_data = verify_session(session_token)
+    if not session_data:
+        raise HTTPException(status_code=401, detail="Invalid or expired session")
+
+    user_id = session_data["user_id"]
+    return user_id
+
 
 
 #######
@@ -90,6 +111,16 @@ def generate_unique_filename(file_name: str) -> str:
 app = FastAPI(lifespan=lifespan)
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+app.add_middleware(
+    CORSMiddleware,
+    #allow_origins=["http://172.20.10.2:3000", "http://localhost:3000", "https://drake-heroic-chow.ngrok-free.app", "http://drake-heroic-chow.ngrok-free.app", "https://lkb-v2.vercel.app", "https://lkb-v2.vercel.app" , "https://lkb-v2-git-dev-koloas-projects.vercel.app"],  # Frontend domain, amit engedélyezel
+    allow_origins=["http://localhost:3000"],  # Frontend domain, amit engedélyezel
+    allow_credentials=True,
+    #allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Engedélyezett HTTP módszerek
+    allow_methods=["*"],  # Engedélyezett HTTP módszerek
+    #allow_headers=["Content-Type", "Authorization"],  # Engedélyezett fejlécek
+    allow_headers=["*"],  # Engedélyezett fejlécek
+)
 
 
 #######
@@ -100,9 +131,13 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 async def root():
     return {"admin": "Hello hacker! ;)"}
 
-@app.post("/api/register/")
-async def register(name: str, email: EmailStr, second_email: EmailStr, password: str):
-    
+@app.post("/api/register")
+async def register(data: RegisterRequest):
+    name = data.name
+    email = data.email
+    second_email = data.second_email
+    password = data.password
+
     if is_email_taken(email):
         raise HTTPException(status_code=400, detail="Email already in use")
     
@@ -129,7 +164,7 @@ async def register(name: str, email: EmailStr, second_email: EmailStr, password:
 
     return {'message': 'Registration successful', 'backup_key': backup_key}
 
-@app.post("/api/login/")
+@app.post("/api/login")
 async def login(data: LoginRequest, response: Response):
     user = supabase.table("user").select("*").eq("email", data.email).single().execute().data
 
@@ -141,23 +176,20 @@ async def login(data: LoginRequest, response: Response):
 
 @app.post("/api/logout")
 async def logout(response: Response):
-    response.delete_cookie("session")
+    #response.delete_cookie("session_token")
+    #response.delete_cookie("session_token", path="/api") 
+    response.delete_cookie(
+        "session_token", 
+        httponly=True,  # Az HttpOnly flag is szükséges a törléshez
+        secure=False,   # A Secure flag itt is fontos, hogy megfelelő legyen
+        samesite="Lax", # Azonos beállítás a törléshez
+        path="/"        # Az alapértelmezett path, ha nem volt specifikálva
+    )
     return {"message": "Logged out successfully"}
 
 @app.get("/api/user")
 async def get_user(request: Request):
-## auth starts
-    session_token = request.cookies.get("session")
-
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    session_data = verify_session(session_token)
-    if not session_data:
-        raise HTTPException(status_code=401, detail="Invalid or expired session")
-
-    user_id = session_data["user_id"]
-## auth ends
+    user_id = authenticate_user(request.cookies.get("session_token"))
 
     user = supabase.table('user').select('*').eq('id', user_id).single().execute().data
     if not user:
@@ -176,18 +208,8 @@ async def get_user(request: Request):
 
 @app.put("/api/user")
 async def edit_user(request: Request, name: Optional[str] = None, email: Optional[EmailStr] = None, second_email: Optional[EmailStr] = None, password: Optional[str] = None, algo: Optional[str] = None):
-## auth starts
-    session_token = request.cookies.get("session")
-
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    session_data = verify_session(session_token)
-    if not session_data:
-        raise HTTPException(status_code=401, detail="Invalid or expired session")
-
-    user_id = session_data["user_id"]
-## auth ends
+    
+    user_id = authenticate_user(request.cookies.get("session_token"))
     
     user = supabase.table('user').select('*').eq('id', user_id).single().execute().data
     if not user:
@@ -223,24 +245,61 @@ async def edit_user(request: Request, name: Optional[str] = None, email: Optiona
 
     return {"message": "User updated successfully"}
 
-
-
-
-
 @app.get("/api/files")
-async def get_files():
-    return {'message': 'Hi :)'}
+async def get_files(request: Request,):
+    user_id = authenticate_user(request.cookies.get("session_token"))
+
+    result = supabase.table('files').select('*').eq('user_id', user_id).execute().data
+
+    return result
 
 @app.delete("/api/files")
-async def delete_file():
-    return {'message': 'Hi :)'}
+async def delete_file(
+    request: Request, 
+    filename: Optional[str] = "",
+    uuid: Optional[str] = ""
+):
+    user_id = authenticate_user(request.cookies.get("session_token"))
+    
+    if filename != "":
+        result = supabase.table('files').select('*').eq('user_id', user_id).eq('filename', filename).execute().data
+        if result:
+            file_path = UPLOADS_DIR / str(user_id) / result[0]['uuid']
+            if not file_path.exists():
+                raise HTTPException(status_code=404, detail="File not found")
+            
+            response = supabase.table("files").delete().eq("user_id", user_id).eq("filename", filename).execute()
+            if not response:
+                raise HTTPException(status_code=500, detail="Failed to delete record from database.")
 
+            try:
+                os.remove(file_path)
+                return {"message": f"File '{filename}' deleted successfully."}
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Error deleting file: {str(e)}")
+        else:
+            raise HTTPException(status_code=404, detail=f"File not found")
 
+    elif uuid != "":
+        result = supabase.table('files').select('*').eq('user_id', user_id).eq('uuid', uuid).execute().data
+        if result:
+            file_path = UPLOADS_DIR / str(user_id) / uuid
+            if not file_path.exists():
+                raise HTTPException(status_code=404, detail="File not found")
+            response = supabase.table("files").delete().eq("user_id", user_id).eq("uuid", uuid).execute()
+            if not response:
+                raise HTTPException(status_code=500, detail="Failed to delete record from database.")
 
+            try:
+                os.remove(file_path)
+                return {"message": f"File '{uuid}' deleted successfully."}
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Error deleting file: {str(e)}")
+        else:
+            raise HTTPException(status_code=404, detail=f"File not found")
 
-
-
-
+    else:
+        raise HTTPException(status_code=400, detail="No parameter given")
 
 @app.post("/api/upload")
 async def upload(
@@ -249,18 +308,7 @@ async def upload(
     encrypted: Optional[bool] = False, 
     files: List[UploadFile] = File(...) 
 ):
-## auth starts
-    session_token = request.cookies.get("session")
-
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    session_data = verify_session(session_token)
-    if not session_data:
-        raise HTTPException(status_code=401, detail="Invalid or expired session")
-
-    user_id = session_data["user_id"]
-## auth ends
+    user_id = authenticate_user(request.cookies.get("session_token"))
     
     user = supabase.table('user').select('*').eq('id', user_id).single().execute().data
     if not user:
@@ -274,31 +322,33 @@ async def upload(
     file_responses = []
 
     for file in files:
-        file_path = os.path.join(user_directory, file.filename)
+        result = supabase.table('files').select('*').eq('user_id', user_id).eq('filename', file.filename).execute()
+        exists = result.data
 
-        exists = supabase.table('files').select('*').eq('user_id', user_id and 'filename', file.filename).single().execute().data
+        # UUID és új fájlútvonal
+        file_uuid = str(uuid.uuid4())
+        file_extension = Path(file.filename).suffix
+        new_filename = f"{file_uuid}{file_extension}"
+        file_path = os.path.join(user_directory, new_filename)
+
         if exists and force:
-
-            # átnevezés
             ...
+            # átnevezés
         elif exists:
             raise HTTPException(400, "Filename already in use")
 
         try:
             if encrypted:
-                encrypted_files = user.get(encrypted_files['files'], [])
-
-                encrypted_files.append(file.filename)
-
-                res = supabase.table("users").update({"encrypted_files": encrypted_files}).eq("id", user['id']).execute()
-                if not res:
+                ...
+                # titkosítás
+            else:
+                with open(file_path, "wb") as f:
+                    shutil.copyfileobj(file.file, f)
+            
+            res = supabase.table('files').insert({"filename": file.filename, "user_id": user_id, "encrypted": encrypted, "uuid": new_filename}).execute()
+            if not res:
                     raise HTTPException(400, 'Supabase error while updating encrypted_files')
-
-            # titkosítás
-
-            with open(file_path, "wb") as f:
-                shutil.copyfileobj(file.file, f)
-
+            
             file_responses.append({"file": file.filename, "status": "uploaded", "error": ''})
 
         except Exception as e:
@@ -306,18 +356,37 @@ async def upload(
 
     return {"message": "Files processed successfully", "files": file_responses}
 
-
-
-
-
-
-
-
-
-
 @app.get("/api/download")
-async def download():
-    return {'message': 'Hi :)'}
+async def download(
+    request: Request, 
+    filename: Optional[str] = "",
+    uuid: Optional[str] = ""
+):
+    user_id = authenticate_user(request.cookies.get("session_token"))
+
+    if filename != "":
+        result = supabase.table('files').select('*').eq('user_id', user_id).eq('filename', filename).execute().data
+
+        if result:
+            file_path = UPLOADS_DIR / str(user_id) / result[0]['uuid']
+            if not file_path.exists():
+                raise HTTPException(status_code=404, detail="File not found")
+            return FileResponse(path=file_path, filename=filename)
+    
+    elif uuid != "":
+        result = supabase.table('files').select('*').eq('user_id', user_id).eq('uuid', uuid).execute().data
+        if result:
+            file_path = UPLOADS_DIR / str(user_id) / uuid
+            if not file_path.exists():
+                raise HTTPException(status_code=404, detail="File not found")
+            return FileResponse(path=file_path, filename=filename)
+    
+    else:
+        raise HTTPException(status_code=400, detail="No parameter given")
+
+
+
+
 
 @app.get("/api/algos")
 async def get_algos():
@@ -334,3 +403,21 @@ async def switch_algo():
             # Letitkosítja a korábban titkosított fájlokat
 
     return {'message': 'Hi :)'}
+
+
+
+
+"""
+## auth starts
+    session_token = request.cookies.get("session_token")
+
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    session_data = verify_session(session_token)
+    if not session_data:
+        raise HTTPException(status_code=401, detail="Invalid or expired session")
+
+    user_id = session_data["user_id"]
+## auth ends
+"""

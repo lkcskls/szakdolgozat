@@ -47,11 +47,11 @@ def set_session_cookie(response: Response, user_id: int):
     session_token = create_session(user_id)
     
     response.set_cookie(
-        key="session", 
+        key="session_token", 
         value=session_token, 
         httponly=True,   # A JavaScript nem tudja olvasni (XSS védelem)
-        #secure=True,     # Csak HTTPS-en küldjük
-        samesite="Lax"   # Megakadályozza a CSRF támadásokat
+        secure=False,     # Csak HTTPS-en küldjük
+        samesite="Lax"   # Lax: Megakadályozza a CSRF támadásokat
     )
 
 def verify_session(session_token: str):
@@ -59,6 +59,17 @@ def verify_session(session_token: str):
         return serializer.loads(session_token, max_age=SESSION_EXPIRY)
     except:
         return None
+    
+def delete_session_cookie(response: Response):
+    # Cookie törlése a lejárati idő módosításával
+    response.delete_cookie(
+        key="session_token",
+        httponly=True,  # HttpOnly beállítás
+        secure=False,   # A Secure flag itt is fontos
+        samesite="Lax", # Azonos samesite beállítás
+        path="/"        # Ha az alapértelmezett path-on volt
+        #expires=datetime.utcnow() - timedelta(days=1),  # A múltba állított lejárat
+    )
 
 
 
