@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { loginUser } from "@/lib/api";
+import { toast } from "sonner";
 
 export function LoginForm({
   className,
@@ -32,12 +33,19 @@ export function LoginForm({
       const data = await loginUser(email, password)
       console.log("Siker:", data);
 
-      router.push("/dashboard"); 
+      router.push("/dashboard");
 
-    } catch (err: any) {
-      console.error("Hiba:", err.message);
-      alert(err.message);
     }
+    catch (err: unknown) {
+      if (err instanceof Error) {
+        console.error("Hiba:", err.message)
+        toast.error("Hiba történt", { description: err.message })
+      } else {
+        console.error("Ismeretlen hiba:", err)
+        toast.error("Ismeretlen hiba történt")
+      }
+    }
+    
   }
 
 
@@ -69,10 +77,10 @@ export function LoginForm({
                   <div className="flex items-center">
                     <Label htmlFor="password">Password</Label>
                   </div>
-                  <Input 
-                    id="password" 
-                    type="password" 
-                    required 
+                  <Input
+                    id="password"
+                    type="password"
+                    required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   />

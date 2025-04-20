@@ -28,6 +28,19 @@ export type FileTableData = {
     created_at: string
 }
 
+const DownloadButton = ({ file }: { file: FileTableData }) => {
+    const { keyHex } = useKey();
+
+    return (
+        <button
+            onClick={() => downloadFileByName(file.filename, keyHex)}
+            className="text-blue-600 hover:underline"
+        >
+            {file.filename}
+        </button>
+    )
+}
+
 export function columns(onDataChanged: () => void): ColumnDef<FileTableData>[] {
     return [
         {
@@ -35,14 +48,8 @@ export function columns(onDataChanged: () => void): ColumnDef<FileTableData>[] {
             header: "Filename",
             cell: ({ row }) => {
                 const file = row.original
-                const { keyHex } = useKey();
                 return (
-                    <button
-                        onClick={() => downloadFileByName(file.filename, keyHex)}
-                        className="text-blue-600 hover:underline"
-                    >
-                        {file.filename}
-                    </button>
+                    <DownloadButton file={file} />
                 )
             },
         },
@@ -95,7 +102,6 @@ interface DataTableProps<TData, TValue> {
 export function DataTable<TData, TValue>({
     columns,
     data,
-    onDataChanged
 }: DataTableProps<TData, TValue>) {
     const table = useReactTable({
         data,

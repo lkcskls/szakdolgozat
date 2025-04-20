@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input"
 import { registerUser } from "@/lib/api"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card"
+import { toast } from "sonner"
 
 const formSchema = z.object({
     name: z.string().min(5, {
@@ -56,15 +57,18 @@ export function SignUpForm() {
             // átirányítás pl. a homepage-re:
             router.push("/login");  // router-t előbb hozd be: import { useRouter } from "next/navigation";
 
-        } catch (err: any) {
-            console.error("Hiba:", err.message);
-            // itt tudsz pl. hibaüzenetet kiírni state-be, toast üzenet, stb.
+        } catch (err: unknown) {
+            if (err instanceof Error) {
+                console.error("Hiba:", err.message)
+                toast.error("Hiba történt", { description: err.message })
+            } else {
+                console.error("Ismeretlen hiba:", err)
+                toast.error("Ismeretlen hiba történt")
+            }
         }
     }
 
     return (
-
-
         <div className={"flex flex-col gap-6"}>
             <Card>
                 <CardHeader className="text-center">
