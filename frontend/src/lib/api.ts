@@ -1,7 +1,15 @@
 import { FileTableData } from "@/components/file-table";
+import { toast } from 'sonner'
 
 export const BACKEND_BASE_URL = "http://localhost:8000";
 
+export type User = {
+    id: number
+    name: string
+    email: string
+    second_email: string
+    algo: string
+}
 
 export async function getFiles(): Promise<FileTableData[]> {
     const res = await fetch(`${BACKEND_BASE_URL}/api/files`, {
@@ -33,7 +41,6 @@ export const uploadFiles = async (files: File[], encrypted: boolean) => {
     }
 };
 
-
 export const registerUser = async (name: string, email: string, secondEmail: string, password: string) => {
     const res = await fetch(`${BACKEND_BASE_URL}/api/register`, {
         method: "POST",
@@ -57,12 +64,15 @@ export const loginUser = async (email: string, password: string) => {
 };
 
 export const logoutUser = async () => {
-    const res = await fetch(`${BACKEND_BASE_URL}/api/logout`, { method: "POST" });
+    const res = await fetch(`${BACKEND_BASE_URL}/api/logout`, {
+        method: "POST",
+        credentials: "include"
+    });
     if (!res.ok) throw new Error("Kijelentkezési hiba");
     return res.json();
 };
 
-export const getUser = async () => {
+export async function getUser(): Promise<User> {
     const res = await fetch(`${BACKEND_BASE_URL}/api/user`, {
         method: "GET",
         credentials: 'include'
@@ -93,20 +103,23 @@ export const editUser = async (updateData: {
     return res.json();
 };
 
-export const downloadFileByName = async (filename: string) => {
-    const res = await fetch(`${BACKEND_BASE_URL}/api/download?filename=${filename}`, {
+export const downloadFileByName = async (filename: string, keyHex: string) => {
+    console.log(filename, keyHex)
+    const res = await fetch(`${BACKEND_BASE_URL}/api/download?filename=${filename}&key_hex=${keyHex}`, {
         method: "GET",
         credentials: 'include'
     });
-    if (!res.ok) throw new Error("Letöltési hiba");
-
-    
-
+    console.log(res)
+    if (!res.ok) {
+        toast("File can't be shown, maybe your secret key is invalid")
+        throw new Error("File can't be shown, maybe your secret key is invalid");
+    }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     window.open(url, "_blank");
     // return res.blob(); // vagy res.json() ha JSON választ vársz
 };
+
 
 export const downloadFileByUuid = async (uuid: string) => {
     const res = await fetch(`${BACKEND_BASE_URL}/api/download?uuid=${uuid}`, {

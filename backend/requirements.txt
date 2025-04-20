@@ -34,3 +34,5 @@ pydantic[email]
 bcrypt
 itsdangerous
 python-multipart
+cryptography
+pycryptodome

@@ -3,17 +3,19 @@
 ####
 
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from cryptography.fernet import Fernet
+from fastapi.responses import FileResponse, StreamingResponse
 from contextlib import asynccontextmanager
 from supabase import create_client, Client
 from pydantic import BaseModel, EmailStr
-from security import hash_password, verify_password, set_session_cookie, verify_session, gen_backup_key
+from security import hash_password, verify_password, set_session_cookie, delete_session_cookie, verify_session, gen_backup_key, generate_aes_key, aes_encrypt_file, aes_decrypt_file
 from datetime import datetime
 from fastapi import FastAPI, HTTPException, Depends, status, Security, Response, Request, UploadFile, File
 from dotenv import load_dotenv
 from typing import Optional, List
 from redis import Redis
 from pathlib import Path
+from io import BytesIO
 import secrets
 import shutil
 import json
@@ -30,6 +32,7 @@ SUPABASE_URL    = os.getenv('SUPABASE_URL')
 SUPABASE_KEY    = os.getenv('SUPABASE_KEY')
 DEFAULT_ALGO    = 'AES_256'
 UPLOADS_DIR     = Path("uploads")
+TEMP_DIR        = Path("temp")
 
 #######
 ########## SCHEMAS
@@ -101,6 +104,9 @@ def authenticate_user(session_token: str) -> int:
 
     user_id = session_data["user_id"]
     return user_id
+
+def save_file():
+    ...
 
 
 
@@ -176,15 +182,7 @@ async def login(data: LoginRequest, response: Response):
 
 @app.post("/api/logout")
 async def logout(response: Response):
-    #response.delete_cookie("session_token")
-    #response.delete_cookie("session_token", path="/api") 
-    response.delete_cookie(
-        "session_token", 
-        httponly=True,  # Az HttpOnly flag is szükséges a törléshez
-        secure=False,   # A Secure flag itt is fontos, hogy megfelelő legyen
-        samesite="Lax", # Azonos beállítás a törléshez
-        path="/"        # Az alapértelmezett path, ha nem volt specifikálva
-    )
+    delete_session_cookie(response)
     return {"message": "Logged out successfully"}
 
 @app.get("/api/user")
@@ -339,8 +337,17 @@ async def upload(
 
         try:
             if encrypted:
-                ...
-                # titkosítás
+                if not user['has_key']:
+                    key = generate_aes_key()
+                    key_hex = key.hex()
+                    print(key_hex)
+                    #supabase.table("user").update({"has_key" : False}).eq("id", user["id"]).execute().data
+                
+                file_content = await file.read()
+                input_file = BytesIO(file_content)
+                encrypted_file = aes_encrypt_file(input_file, key)
+                with open(file_path, "wb") as f:
+                    shutil.copyfileobj(encrypted_file, f)
             else:
                 with open(file_path, "wb") as f:
                     shutil.copyfileobj(file.file, f)
@@ -360,9 +367,11 @@ async def upload(
 async def download(
     request: Request, 
     filename: Optional[str] = "",
-    uuid: Optional[str] = ""
+    uuid: Optional[str] = "",
+    key_hex: Optional[str] = ""
 ):
     user_id = authenticate_user(request.cookies.get("session_token"))
+    #print(key_hex)
 
     if filename != "":
         result = supabase.table('files').select('*').eq('user_id', user_id).eq('filename', filename).execute().data
@@ -371,7 +380,32 @@ async def download(
             file_path = UPLOADS_DIR / str(user_id) / result[0]['uuid']
             if not file_path.exists():
                 raise HTTPException(status_code=404, detail="File not found")
-            return FileResponse(path=file_path, filename=filename)
+            if result[0]['encrypted']:
+                if key_hex == "":
+                    raise HTTPException(status_code=400, detail="No key_hex parameter given")
+                try:
+                    with open(file_path, "rb") as f:
+                        file_content = f.read()
+
+                    key_bytes = bytes.fromhex(key_hex)
+                    decrypted_file = aes_decrypt_file(BytesIO(file_content), key_bytes)
+                    print("KOLOSKOLOS")
+                    
+                    decrypted_file_path = TEMP_DIR / f"decrypted_{result[0]['uuid']}"
+                    
+                    print(decrypted_file_path)
+                    with open(decrypted_file_path, "wb") as decrypted_f:
+                        decrypted_f.write(decrypted_file.read())
+
+
+                    return FileResponse(
+                        decrypted_file_path,  # Titkosítatlan fájl elérési útja
+                        filename=filename,     # A fájl eredeti neve
+                    )
+                except Exception as e:
+                    raise HTTPException(status_code=400, detail=f"Decryption failed: {str(e)}")
+            else:
+                return FileResponse(path=file_path, filename=filename)
     
     elif uuid != "":
         result = supabase.table('files').select('*').eq('user_id', user_id).eq('uuid', uuid).execute().data

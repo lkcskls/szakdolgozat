@@ -9,6 +9,7 @@ import { getFiles } from "@/lib/api"
 import { useEffect, useState } from "react"
 import FileUploadModal from "@/components/FileUploadModel"
 import { RefreshButton } from "@/components/RefreshButton"
+import KeyInpupt from "@/components/KeyInput"
 
 
 export default function Page() {
@@ -58,6 +59,7 @@ export default function Page() {
                 <div className="flex items-center gap-2">
                   <FileUploadModal onUploadComplete={refreshFiles} />
                   <RefreshButton onClick={refreshFiles} isLoading={refreshing || loading} />
+                  <KeyInpupt/>
                 </div>
 
                 {loading ? <>

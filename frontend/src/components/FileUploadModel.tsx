@@ -6,6 +6,7 @@ import { FaTrash } from "react-icons/fa";  // Szemetes ikon importálása
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { uploadFiles } from "@/lib/api";
+import { useKey } from "./KeyProvider";
 
 interface FileUploadModalProps {
     onUploadComplete: () => void
@@ -16,6 +17,7 @@ export default function FileUploadModal({ onUploadComplete }: FileUploadModalPro
     const [files, setFiles] = useState<File[]>([]); // Több fájl kezelése
     const [encrypted, setEncrypted] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+    const { keyHex, setKeyHex } = useKey();
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
@@ -46,6 +48,7 @@ export default function FileUploadModal({ onUploadComplete }: FileUploadModalPro
         setIsUploading(true);
 
         try {
+            console.log(keyHex)
             await uploadFiles(files, encrypted);
 
             setIsOpen(false);  // Bezárja a modált sikeres feltöltés után
@@ -119,6 +122,10 @@ export default function FileUploadModal({ onUploadComplete }: FileUploadModalPro
                             />
                             <Label htmlFor="encrypted-toggle">File encryption</Label>
                         </div>
+                        {encrypted ? <>
+                            <Label htmlFor="key_hex">Your secret key:</Label>
+                            <Input id="key_hex" type="text" value={keyHex} onChange={(e) => {setKeyHex(e.target.value)}}/>
+                        </> : <></>}
 
                         <DialogFooter>
                             <Button variant="secondary" onClick={() => { setIsOpen(false); setFiles([]); }}>

@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/table"
 import { deleteFileByName, downloadFileByName } from "@/lib/api"
 import DeleteFileButton from "./DeleteFileButton"
+import { useKey } from "./KeyProvider"
 
 // This type is used to define the shape of our data.
 // You can use a Zod schema here if you want.
@@ -34,9 +35,10 @@ export function columns(onDataChanged: () => void): ColumnDef<FileTableData>[] {
             header: "Filename",
             cell: ({ row }) => {
                 const file = row.original
+                const { keyHex } = useKey();
                 return (
                     <button
-                        onClick={() => downloadFileByName(file.filename)}
+                        onClick={() => downloadFileByName(file.filename, keyHex)}
                         className="text-blue-600 hover:underline"
                     >
                         {file.filename}
