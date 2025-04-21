@@ -50,10 +50,10 @@ export default function TabsDemo() {
     }, [user]);
 
     function handleUpdateUser() {
-        
-        
+
+
         editUser(newUser)
-        
+
     }
 
     return (
@@ -71,73 +71,101 @@ export default function TabsDemo() {
             <SidebarInset>
                 <SiteHeader />
 
-                <Tabs defaultValue="account" className="w-[400px]">
-                    <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="account">Account</TabsTrigger>
-                        <TabsTrigger value="password">Password</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="account">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Account</CardTitle>
-                                <CardDescription>
-                                    Make changes to your account here. Click save when you are done.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-2">
-                                <p><b>Name:</b> {user.name}</p>
-                                <p><b>Email:</b> {user.email}</p>
-                                <p><b>Secondary email:</b> {user.second_email}</p>
-                                <br />
+                <div className="flex flex-1 mt-15 justify-center p-4">
+                    <div className="max-w-lg">
 
-                                <div className="space-y-1">
-                                    <Label htmlFor="name">Name</Label>
-                                    <Input id="name" value={newUser.name} onChange={(e) =>
-                                        setNewUser({ ...newUser, name: e.target.value })
-                                    } />
-                                </div>
-                                <div className="space-y-1">
-                                    <Label htmlFor="email">Email</Label>
-                                    <Input id="email" value={newUser.email} onChange={(e) =>
-                                        setNewUser({ ...newUser, email: e.target.value })
-                                    } />
-                                </div>
-                                <div className="space-y-1">
-                                    <Label htmlFor="secondary_email">Secondary email</Label>
-                                    <Input id="secondary_email" value={newUser.second_email} onChange={(e) =>
-                                        setNewUser({ ...newUser, second_email: e.target.value })
-                                    } />
-                                </div>
-                            </CardContent>
-                            <CardFooter>
-                                <Button onClick={handleUpdateUser}>Save changes</Button>
-                            </CardFooter>
-                        </Card>
-                    </TabsContent>
-                    <TabsContent value="password">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Password</CardTitle>
-                                <CardDescription>
-                                    Change your password here. After saving, you will be logged out.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-2">
-                                <div className="space-y-1">
-                                    <Label htmlFor="current">Current password</Label>
-                                    <Input id="current" type="password" />
-                                </div>
-                                <div className="space-y-1">
-                                    <Label htmlFor="new">New password</Label>
-                                    <Input id="new" type="password" />
-                                </div>
-                            </CardContent>
-                            <CardFooter>
-                                <Button>Save password</Button>
-                            </CardFooter>
-                        </Card>
-                    </TabsContent>
-                </Tabs>
+
+
+                        <Tabs defaultValue="account" className="w-[400px]">
+                            <TabsList className="grid w-full grid-cols-2">
+                                <TabsTrigger value="account">Account</TabsTrigger>
+                                <TabsTrigger value="password">Password</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="account">
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Account</CardTitle>
+                                        <CardDescription>
+                                            Make changes to your account here. Click save when you are done.
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-2">
+                                        <div className="flex justify-between">
+                                            <div>
+                                                <p><b>Name:</b></p>
+                                            </div>
+                                            <div>
+                                                <p>{user.name}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <div>
+                                                <p><b>Email:</b></p>
+                                            </div>
+                                            <div>
+                                                <p>{user.email}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <div>
+                                                <p><b>Secondary email:</b></p>
+                                            </div>
+                                            <div>
+                                                <p>{user.second_email}</p>
+                                            </div>
+                                        </div>
+                                        <br />
+
+                                        <div className="space-y-1">
+                                            <Label htmlFor="name">Name</Label>
+                                            <Input id="name" value={newUser.name} onChange={(e) =>
+                                                setNewUser({ ...newUser, name: e.target.value })
+                                            } />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label htmlFor="email">Email</Label>
+                                            <Input id="email" value={newUser.email} onChange={(e) =>
+                                                setNewUser({ ...newUser, email: e.target.value })
+                                            } />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label htmlFor="secondary_email">Secondary email</Label>
+                                            <Input id="secondary_email" value={newUser.second_email} onChange={(e) =>
+                                                setNewUser({ ...newUser, second_email: e.target.value })
+                                            } />
+                                        </div>
+                                    </CardContent>
+                                    <CardFooter>
+                                        <Button onClick={handleUpdateUser}>Save changes</Button>
+                                    </CardFooter>
+                                </Card>
+                            </TabsContent>
+                            <TabsContent value="password">
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Password</CardTitle>
+                                        <CardDescription>
+                                            Change your password here. After saving, you will be logged out.
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-2">
+                                        <div className="space-y-1">
+                                            <Label htmlFor="current">Current password</Label>
+                                            <Input id="current" type="password" />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label htmlFor="new">New password</Label>
+                                            <Input id="new" type="password" />
+                                        </div>
+                                    </CardContent>
+                                    <CardFooter>
+                                        <Button>Save password</Button>
+                                    </CardFooter>
+                                </Card>
+                            </TabsContent>
+                        </Tabs>
+                    </div>
+                </div>
             </SidebarInset>
         </SidebarProvider>
     )

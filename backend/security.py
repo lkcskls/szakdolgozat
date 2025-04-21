@@ -2,20 +2,17 @@
 ########## IMPORTS
 ####
 
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 from itsdangerous import URLSafeTimedSerializer
 from pydantic import EmailStr
 from fastapi import Request, Response
 from dotenv import load_dotenv
+from io import BytesIO
 import secrets
 import bcrypt
-from io import BytesIO
 import os
-
-
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 
 #######
@@ -46,8 +43,6 @@ def verify_password(password: str, hashed_password: str) -> bool:
 ########## SESSION FUNCTIONS
 ####
 
-#? Be lehet úgy állítani a session tokent, hogy a böngészőből is törlődjön a lejárat után
-
 def create_session(user_id: int) -> str:
     return serializer.dumps({"user_id": user_id})
 
@@ -55,11 +50,11 @@ def set_session_cookie(response: Response, user_id: int):
     session_token = create_session(user_id)
     
     response.set_cookie(
-        key="session_token", 
-        value=session_token, 
-        httponly=True,   # A JavaScript nem tudja olvasni (XSS védelem)
-        secure=False,     # Csak HTTPS-en küldjük
-        samesite="Lax",   # Lax: Megakadályozza a CSRF támadásokat
+        key="session_token",
+        value=session_token,
+        httponly=True,
+        secure=False,
+        samesite="Lax",
         max_age=SESSION_EXPIRY
     )
 
@@ -72,10 +67,10 @@ def verify_session(session_token: str):
 def delete_session_cookie(response: Response):
     response.delete_cookie (
         key="session_token",
-        httponly=True,  # HttpOnly beállítás
-        secure=False,   # A Secure flag itt is fontos
-        samesite="Lax", # Azonos samesite beállítás
-        path="/"        # Ha az alapértelmezett path-on volt
+        httponly=True,
+        secure=False,
+        samesite="Lax",
+        path="/"
     )
 
 
@@ -93,50 +88,95 @@ def gen_backup_key(length: int = 16) -> str:
 ########## ENCRYPTION-DECRYPTION
 ####
 
-def generate_aes_key():
+def generate_key():
     return os.urandom(32)
 
-# AES titkosítás a fájlhoz
+#AES titkosítás
 def aes_encrypt_file(file: BytesIO, key: bytes):
-    # Generálj egy egyedi inicializációs vektort (IV)
+    #random inicializációs vektor generálás
     iv = os.urandom(12)
     cipher = Cipher(algorithms.AES(key), modes.GCM(iv), backend=default_backend())
     encryptor = cipher.encryptor()
-
-    # Titkosítjuk a fájl tartalmát
     encrypted_file = BytesIO()
-    encrypted_file.write(iv)  # Az IV-t először a fájlba írjuk
 
-    # Fájl titkosítása blokkokban
+    #inicializációs vektor hozzáadása
+    encrypted_file.write(iv)
+
+    #fájl titkosítása blokkokban
     while chunk := file.read(1024):
         encrypted_chunk = encryptor.update(chunk)
         encrypted_file.write(encrypted_chunk)
-
     encrypted_file.write(encryptor.finalize())
-    encrypted_file.write(encryptor.tag)  # Hozzáadjuk a tag-ot is
+    
+    #tag hozzáadása
+    encrypted_file.write(encryptor.tag)
 
-    encrypted_file.seek(0)  # Visszaállítjuk a fájlmutatót, hogy olvasható legyen
-    #print("enc")
+    #fájlmutatót visszaállítása
+    encrypted_file.seek(0)
+    
+    #titkosított fájl visszaadása
     return encrypted_file
 
-# AES fájl visszafejtése
+#AES visszafejtés
 def aes_decrypt_file(encrypted_file: BytesIO, key: bytes) -> BytesIO:
+    #inicializációs vektor kiolvasása
     iv = encrypted_file.read(12)
+
+    #fájl tartalmának olvasása
     content = encrypted_file.read()
 
+    #fájl méretének ellenőrzése
     if len(content) < 16:
         raise ValueError("Encrypted data too short.")
 
+    #titkosított adat és tag meghatározása
     encrypted_data = content[:-16]
     tag = content[-16:]
+
 
     cipher = Cipher(algorithms.AES(key), modes.GCM(iv, tag), backend=default_backend())
     decryptor = cipher.decryptor()
 
+    #visszafejtett fájl létrehozása
     decrypted_file = BytesIO()
     decrypted_file.write(decryptor.update(encrypted_data))
     decrypted_file.write(decryptor.finalize())
     decrypted_file.seek(0)
 
-    #print(f"IV length: {len(iv)} | Encrypted data length: {len(encrypted_data)} | Tag length: {len(tag)}")
+    #visszafejtett fájl visszaadása
+    return decrypted_file
+
+#ChaCha20 titkosítás
+def chacha20_encrypt_file(file: BytesIO, key: bytes) -> BytesIO:
+    #ChaCha20-Poly1305 96 bites nonce generálás
+    nonce = os.urandom(12) 
+
+    plaintext = file.read() #nem biztos, hogy kell
+    aead_cipher = ChaCha20Poly1305(key)
+    ciphertext = aead_cipher.encrypt(nonce, plaintext, None)
+
+    #titkosított fájl létrehozása
+    encrypted_file = BytesIO()
+    encrypted_file.write(nonce)
+    encrypted_file.write(ciphertext)
+    encrypted_file.seek(0)
+
+    #titkosított fájl visszaadása
+    return encrypted_file
+
+#ChaCha20 visszafejtés
+def chacha20_decrypt_file(encrypted_file: BytesIO, key: bytes) -> BytesIO:
+    #nonce és a titkosított adat kiolvasása
+    nonce = encrypted_file.read(12)
+    ciphertext = encrypted_file.read()
+
+    aead_cipher = ChaCha20Poly1305(key)
+    plaintext = aead_cipher.decrypt(nonce, ciphertext, None)
+
+    #visszafejtett fájl létrehozása
+    decrypted_file = BytesIO()
+    decrypted_file.write(plaintext)
+    decrypted_file.seek(0)
+
+    #visszafejtett fájl visszaadása
     return decrypted_file

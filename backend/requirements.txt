@@ -7,7 +7,7 @@ pyjwt
 dotenv
 
 # Redis gyorsítótárazás
-redis
+#redis
 #httpx
 
 # Elasticsearch keresőmotor

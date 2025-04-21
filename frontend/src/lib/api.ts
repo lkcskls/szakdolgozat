@@ -9,7 +9,12 @@ export type User = {
     email: string
     second_email: string
     algo: string
-}
+};
+
+export type UserAlgoResponse = {
+    algo: string;
+    hasSecretKey: boolean;
+};
 
 export async function getFiles(): Promise<FileTableData[]> {
     const res = await fetch(`${BACKEND_BASE_URL}/api/files`, {
@@ -120,7 +125,6 @@ export const downloadFileByName = async (filename: string, keyHex: string) => {
     // return res.blob(); // vagy res.json() ha JSON választ vársz
 };
 
-
 export const downloadFileByUuid = async (uuid: string) => {
     const res = await fetch(`${BACKEND_BASE_URL}/api/download?uuid=${uuid}`, {
         method: "GET",
@@ -149,3 +153,58 @@ export const deleteFileByUuid = async (uuid: string) => {
 
     return await res.json();
 };
+
+export async function getAlgos() {
+    const res = await fetch(`${BACKEND_BASE_URL}/api/algos`, {
+        method: "GET",
+        credentials: "include",
+    });
+    if (!res.ok) {
+        toast("Problem with fetching the algos")
+        throw new Error("Problem with fetching the algos");
+    }
+    return res.json();
+};
+
+export async function getUserAlgo(): Promise<UserAlgoResponse> {
+    const res = await fetch(`${BACKEND_BASE_URL}/api/algo`, {
+        method: "GET",
+        credentials: "include",
+    });
+    if (!res.ok) {
+        toast("Problem with fetching the algos")
+        throw new Error("Problem with fetching the algos");
+    }
+    const data: UserAlgoResponse = await res.json();
+    return data;
+};
+
+export const changeAlgorithm = async (newAlgo: string, secretKey: string) => {
+    try {
+        const res = await fetch(`${BACKEND_BASE_URL}/api/switch-algo`, {
+            method: 'POST',
+            credentials: 'include', // Biztosítja a session cookie-kat
+            headers: {
+                'Content-Type': 'application/json', // JSON típusú adatot küldünk
+            },
+            body: JSON.stringify({
+                algo: newAlgo, // A kívánt algoritmus
+                current_sk: secretKey
+            }),
+        });
+
+        if (!res.ok) {
+            throw new Error('Failed to change algorithm');
+        }
+
+        const data = await res.json();
+        console.log('Algorithm changed:', data.message);
+        return data;
+    } catch (err) {
+        toast("Failed to change algorithm")
+        console.error('Error changing algorithm:', err);
+        throw err; // A hiba továbbadásához
+    }
+};
+
+
