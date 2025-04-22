@@ -1,14 +1,18 @@
+"use client"
+
 import { useState } from "react";
 import { useKey } from "./KeyProvider";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { verifySecretKey } from "@/lib/api";
 
 export default function KeyInpupt() {
     const [input, setInput] = useState<string>("")
     const {keyHex, setKeyHex} = useKey();
 
-    function handleKeyHexSave(){
-        setKeyHex(input)
+    async function handleKeyHexSave(){
+        const valid = await verifySecretKey(input)
+        if(valid) setKeyHex(input)
     }
 
     function handleKeyHexRemove(){

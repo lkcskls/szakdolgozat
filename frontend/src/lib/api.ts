@@ -1,7 +1,9 @@
 import { FileTableData } from "@/components/file-table";
 import { toast } from 'sonner'
 
-export const BACKEND_BASE_URL = "http://localhost:8000";
+//const SK = "cae9b6905136901b9f17fc6389fbdf9e00d10fb05ffcdf40e98f45014ee5fdcc"
+
+export const BACKEND_BASE_URL = "https://localhost";
 
 export type User = {
     id: number
@@ -21,10 +23,13 @@ export async function getFiles(): Promise<FileTableData[]> {
         method: 'GET',
         credentials: 'include',
     });
+    if (!res.ok) {
+        toast("Files fetching failed")
+    }
     return await res.json();
 };
 
-export const uploadFiles = async (files: File[], encrypted: boolean) => {
+export const uploadFiles = async (files: File[], encrypted: boolean, keyHex: string) => {
     if (files.length === 0) return;
 
     const formData = new FormData();
@@ -32,16 +37,16 @@ export const uploadFiles = async (files: File[], encrypted: boolean) => {
         formData.append("files", file);
     });
 
-    const res = await fetch(`${BACKEND_BASE_URL}/api/upload?encrypted=${encrypted}`, {
+    const res = await fetch(`${BACKEND_BASE_URL}/api/upload?encrypted=${encrypted}&key_hex=${keyHex}`, {
         method: "POST",
         body: formData,
         credentials: "include",
     });
 
     const result = await res.json();
-    //console.log(result)
 
     if (!res.ok) {
+        toast("Upload failed")
         throw new Error(result.detail || "Upload failed");
     }
 };
@@ -53,7 +58,10 @@ export const registerUser = async (name: string, email: string, secondEmail: str
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: name, email: email, second_email: secondEmail, password: password }),
     });
-    if (!res.ok) throw new Error("Regisztrációs hiba");
+    if (!res.ok) {
+        toast("Signup failed")
+        throw new Error("Signup failed");
+    }
     return res.json();
 };
 
@@ -64,7 +72,10 @@ export const loginUser = async (email: string, password: string) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
     });
-    if (!res.ok) throw new Error("Bejelentkezési hiba");
+    if (!res.ok) {
+        toast("Invalid email or password")
+        throw new Error("Login failed");
+    }
     return res.json();
 };
 
@@ -73,7 +84,10 @@ export const logoutUser = async () => {
         method: "POST",
         credentials: "include"
     });
-    if (!res.ok) throw new Error("Kijelentkezési hiba");
+    if (!res.ok) {
+        toast("Logout failed")
+        throw new Error("Logout failed");
+    }
     return res.json();
 };
 
@@ -82,7 +96,10 @@ export async function getUser(): Promise<User> {
         method: "GET",
         credentials: 'include'
     });
-    if (!res.ok) throw new Error("Felhasználó lekérés hiba");
+    if (!res.ok) {
+        toast("User fetching failed")
+        throw new Error("User fetching failed");
+    }
     return res.json();
 };
 
@@ -104,7 +121,10 @@ export const editUser = async (updateData: {
         method: "PUT",
         credentials: 'include'
     });
-    if (!res.ok) throw new Error("Felhasználó szerkesztési hiba");
+    if (!res.ok) {
+        toast("Edit user failed")
+        throw new Error("Edit user failed");
+    }
     return res.json();
 };
 
@@ -125,32 +145,15 @@ export const downloadFileByName = async (filename: string, keyHex: string) => {
     // return res.blob(); // vagy res.json() ha JSON választ vársz
 };
 
-export const downloadFileByUuid = async (uuid: string) => {
-    const res = await fetch(`${BACKEND_BASE_URL}/api/download?uuid=${uuid}`, {
-        method: "GET",
-        credentials: 'include'
-    });
-    if (!res.ok) throw new Error("Letöltési hiba");
-    return res.blob(); // vagy res.json() ha JSON választ vársz
-};
-
 export const deleteFileByName = async (filename: string) => {
     const res = await fetch(`${BACKEND_BASE_URL}/api/files?filename=${filename}`, {
         method: "DELETE",
         credentials: 'include'
     });
-
-
-
-    return await res.json();
-};
-
-export const deleteFileByUuid = async (uuid: string) => {
-    const res = await fetch(`${BACKEND_BASE_URL}/api/files?uuid=${uuid}`, {
-        method: "DELETE",
-        credentials: 'include'
-    });
-
+    if (!res.ok) {
+        toast("Delete file failed")
+        throw new Error("Delete file failed");
+    }
     return await res.json();
 };
 
@@ -160,8 +163,8 @@ export async function getAlgos() {
         credentials: "include",
     });
     if (!res.ok) {
-        toast("Problem with fetching the algos")
-        throw new Error("Problem with fetching the algos");
+        toast("Algorithms fetching failed")
+        throw new Error("Algorithms fetching failed");
     }
     return res.json();
 };
@@ -172,24 +175,24 @@ export async function getUserAlgo(): Promise<UserAlgoResponse> {
         credentials: "include",
     });
     if (!res.ok) {
-        toast("Problem with fetching the algos")
-        throw new Error("Problem with fetching the algos");
+        toast("User's algorithm fetching failed")
+        throw new Error("User's algorithm fetching failed");
     }
     const data: UserAlgoResponse = await res.json();
     return data;
 };
 
-export const changeAlgorithm = async (newAlgo: string, secretKey: string) => {
+export const changeAlgorithm = async (newAlgo: string, key_hex: string) => {
     try {
         const res = await fetch(`${BACKEND_BASE_URL}/api/switch-algo`, {
             method: 'POST',
-            credentials: 'include', // Biztosítja a session cookie-kat
+            credentials: 'include',
             headers: {
-                'Content-Type': 'application/json', // JSON típusú adatot küldünk
+                'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                algo: newAlgo, // A kívánt algoritmus
-                current_sk: secretKey
+                algo: newAlgo,
+                key_hex: key_hex
             }),
         });
 
@@ -201,10 +204,48 @@ export const changeAlgorithm = async (newAlgo: string, secretKey: string) => {
         console.log('Algorithm changed:', data.message);
         return data;
     } catch (err) {
-        toast("Failed to change algorithm")
-        console.error('Error changing algorithm:', err);
+        toast("Algorithm change failed")
+        console.error('Algorithm change failed:', err);
         throw err; // A hiba továbbadásához
     }
 };
 
+export const genSecretKey = async (key_hex: string) => {
+    const res = await fetch(`${BACKEND_BASE_URL}/api/gen-sk?current-sk=${key_hex}`, {
+        method: "GET",
+        credentials: "include"
+    });
+    if (!res.ok) {
+        toast("Secret key generation failed")
+        throw new Error("Secret key generation failed");
+    }
+    return res.json();
+};
 
+export async function verifySecretKey(keyHex: string): Promise<boolean> {
+    try {
+        // Lekérés a FastAPI végpontra
+        const response = await fetch(`${BACKEND_BASE_URL}/api/verify-secret-key?key_hex=${keyHex}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+        });
+
+        // Ellenőrizzük, hogy a válasz sikeres volt-e
+        if (!response.ok) {
+            toast("Failed to verify secret key")
+            throw new Error('Failed to verify secret key');
+        }
+
+        // Válasz JSON elemzése
+        const data = await response.json();
+
+        // Feltételezve, hogy a válasz egy boolean érték
+        return data;
+    } catch (error) {
+        console.error('Error verifying secret key:', error);
+        return false; // Hibás válasz esetén false-t adunk vissza
+    }
+}

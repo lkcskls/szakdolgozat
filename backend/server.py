@@ -1,14 +1,14 @@
+
 #######
 ########## IMPORTS
 ####
 
 from fastapi.middleware.cors import CORSMiddleware
-from cryptography.fernet import Fernet
 from fastapi.responses import FileResponse, JSONResponse
 from contextlib import asynccontextmanager
 from supabase import create_client, Client
 from pydantic import BaseModel, EmailStr
-from security import hash_password, verify_password, set_session_cookie, delete_session_cookie, verify_session, gen_backup_key, generate_key, aes_encrypt_file, aes_decrypt_file
+from security import hash_password, verify_password, set_session_cookie, delete_session_cookie, verify_session, gen_backup_key, generate_key, aes_encrypt_file, aes_decrypt_file, chacha20_encrypt_file, chacha20_decrypt_file
 from datetime import datetime
 from fastapi import FastAPI, HTTPException, Response, Request, UploadFile, File
 from dotenv import load_dotenv
@@ -18,6 +18,7 @@ from io import BytesIO
 import shutil
 import uuid
 import os
+import ssl
 
 
 
@@ -69,7 +70,7 @@ class UploadRequest(BaseModel):
 
 class AlgoChangeRequest(BaseModel):
     algo: str
-    current_sk: Optional[str] = ""
+    key_hex: Optional[str] = ""
 
 
 
@@ -80,6 +81,7 @@ class AlgoChangeRequest(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("✅ Server: setup ready")
+    print(ssl.OPENSSL_VERSION)
 
     yield 
     
@@ -89,6 +91,10 @@ def is_email_taken(email: EmailStr) -> bool:
     #email keresése az adatbázisban
     response = supabase.table("user").select("id").eq("email", email).execute()
     return len(response.data) > 0 
+
+### van
+def is_filename_taken() -> bool:
+    ...
 
 def authenticate_user(session_token: str) -> int:
     #ha nincs session_token
@@ -104,18 +110,35 @@ def authenticate_user(session_token: str) -> int:
     user_id = session_data["user_id"]
     return user_id
 
-#chacha20
-def encrypt_file(file_content: bytes, output_path: str, key_hex: str, algo: str):
+def encrypt_file(file_content: bytes, output_path: Path, key_hex: str, algo: str):
     #kulcs átalakítása
     key_bytes = bytes.fromhex(key_hex)
 
+    #output létrehozása, ha nincs
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
     #AES_256
     if algo == "AES_256":
+        print('aes')
         #fájl titkosítása és mentése az output_path-ra
-        input_file = BytesIO(file_content)
-        encrypted_file = aes_encrypt_file(input_file, key_bytes)
-        with open(output_path, "wb") as f:
-            shutil.copyfileobj(encrypted_file, f)
+        try:
+            input_file = BytesIO(file_content)
+            encrypted_file = aes_encrypt_file(input_file, key_bytes)
+            with output_path.open("wb") as f:
+                shutil.copyfileobj(encrypted_file, f)
+        except Exception as e:
+            raise RuntimeError(f"encrypt_file: {e}")
+
+    #ChaCha20
+    elif algo == "ChaCha20":
+        print('chacha')
+        #fájl titkosítása és mentése az output_path-ra
+        try:
+            encrypted_file = chacha20_encrypt_file(BytesIO(file_content), key_bytes)
+            with output_path.open("wb") as output_file:
+                output_file.write(encrypted_file.read())
+        except Exception as e:
+            raise RuntimeError(f"encrypt_file: {e}")
     
     #egyéb algoritmus
     else:
@@ -124,82 +147,113 @@ def encrypt_file(file_content: bytes, output_path: str, key_hex: str, algo: str)
     #log
     print(f"{output_path} encrypt sikeres.")
 
-#van + chacha20
-def decrypt_file(input_path: str, output_path: str, key_hex: str, algo: str):
-    #kulcs átalakítása
-    key_bytes = bytes.fromhex(key_hex)
-
-    #fájl megnyitása az input_path-ról 
-    with open(input_path, "rb") as f:
-        file_content = f.read()
-
-    #fájl létezésének ellenőrzées
-
-    #AES_256
-    if algo == "AES_256":
-        #fájl visszafejtése és mentése az output_path-ra
-        decrypted_file = aes_decrypt_file(BytesIO(file_content), key_bytes)
-        with open(output_path, "wb") as decrypted_f:
-            decrypted_f.write(decrypted_file.read())
-    
-    #egyéb algoritmus
-    else:
-        raise ValueError(f"Unsupported algorithm: {algo}")
-
-    #log
-    print(f"{input_path} → {output_path} decrypt sikeres.")
-
 def encrypt_user_files(user_id: str, key: str, files_to_encrypt: list, algo: str):
-    #user mappájának ellenőrzése, ha kell létrehozása
-    user_upload_dir = os.path.join(UPLOADS_DIR, user_id)
-    os.makedirs(user_upload_dir, exist_ok=True)
+    #user mappájának ellenőrzése, létrehozása ha nincs
+    user_upload_dir = Path(UPLOADS_DIR) / str(user_id)
+    user_upload_dir.mkdir(parents=True, exist_ok=True)
 
     #fájlok feldolgozása
     for file in files_to_encrypt:
         #fájlnév és útvonalak meghatározása
         filename = file['uuid']
-        input_path = os.path.join(TEMP_DIR, filename)
-        output_path = os.path.join(user_upload_dir, filename)
+        input_path = TEMP_DIR / filename
+        output_path = user_upload_dir / filename
 
         #fájl létezésének ellenőrzése
-        if not os.path.exists(input_path):
-            print(f"Fájl nem található: {input_path}, kihagyva.")
-            continue
+        if not input_path.exists():
+            raise RuntimeError(f"Fájl nem található: {input_path}")
 
         #titkosítás
         try:
-            encrypt_file(input_path, output_path, key, algo)
+            with input_path.open("rb") as f:
+                file_content = f.read()
+            encrypt_file(file_content, output_path, key, algo)
             print(f"Sikeresen titkosítva: {filename}")
         except Exception as e:
-            print(f"Hiba a {filename} titkosításakor: {e}")
+            raise RuntimeError(f"Hiba a {input_path} titkosításakor: {e}")
+        finally:
+            #átmeneti fájl törlése
+            if input_path.exists():
+                input_path.unlink()
+                print(f"Átmeneti fájl törölve: {input_path}")
+
+    # log
+    print(f"Minden fájl titkosítva ide: {user_upload_dir}")
+
+
 
     #log
     print(f"Minden fájl titkosítva ide: {user_upload_dir}")
 
+def decrypt_file(input_path: Path, output_path: Path, key_hex: str, algo: str):
+    #fájl létezésének ellenőrzése
+    if not input_path.exists():
+        print('a')
+        raise FileNotFoundError(f"{input_path} can't be found")
+
+    #fájl megnyitása az input_path-ról 
+    with input_path.open("rb") as f:
+        file_content = f.read()
+
+    #output létrehozása, ha nincs
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    #kulcs átalakítása
+    key_bytes = bytes.fromhex(key_hex)
+
+    #AES_256
+    if algo == "AES_256":
+        print("aes")
+        #fájl visszafejtése és mentése az output_path-ra
+        try:
+            decrypted_file = aes_decrypt_file(BytesIO(file_content), key_bytes)
+            with output_path.open("wb") as decrypted_f:
+                decrypted_f.write(decrypted_file.read())
+        except Exception as e:
+            raise RuntimeError(f"encrypt_file: {e}")
+    
+    #ChaCha20
+    elif algo == "ChaCha20":
+        print("chacha")
+        #fájl visszafejtése és mentése az output_path-ra
+        try:
+            decrypted_file = chacha20_decrypt_file(BytesIO(file_content), key_bytes)
+            with output_path.open("wb") as output_file:
+                output_file.write(decrypted_file.read())
+        except Exception as e:
+            raise RuntimeError(f"encrypt_file: {e}")
+    
+    #egyéb algoritmus
+    else:
+        print('b')
+        raise ValueError(f"Unsupported algorithm: {algo}")
+
+    #log
+    print(f"{input_path} → {output_path} decrypt sikeres.")
+
 def decrypt_user_files(user_id: str, key: str, encrypted_files: list, algo: str):
-    #átmeneti mappa ellenőrzése, ha kell létrehozása
-    os.makedirs(TEMP_DIR, exist_ok=True)
+    # átmeneti mappa ellenőrzése, ha kell létrehozása
+    TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
-    #fájlok feldolgozása
+    # fájlok feldolgozása
     for file in encrypted_files:
-        #fájlnév és útvonalak meghatározása
+        # fájlnév és útvonalak meghatározása
         filename = file['uuid']
-        input_path = os.path.join(UPLOADS_DIR, user_id, filename)
-        output_path = os.path.join(TEMP_DIR, filename)
+        input_path = Path(UPLOADS_DIR / str(user_id) / filename)
+        output_path = Path(TEMP_DIR / filename)
 
-        #fájl létezésének ellenőrzése
-        if not os.path.exists(input_path):
-            print(f"Fájl nem található: {input_path}, kihagyva.")
-            continue
+        # fájl létezésének ellenőrzése
+        if not input_path.exists():
+            raise RuntimeError(f"Fájl nem található: {input_path}")
 
-        #visszafejtés
+        # visszafejtés
         try:
             decrypt_file(input_path, output_path, key, algo)
             print(f"Sikeresen kititkosítva: {filename}")
         except Exception as e:
-            print(f"Hiba a {filename} kititkosításakor: {e}")
+            raise RuntimeError(f"Hiba az {input_path} kititkosításakor: {e}")
 
-    #log
+    # log
     print(f"Minden fájl kititkosítva ide: {TEMP_DIR}")
 
 
@@ -270,8 +324,11 @@ async def register(data: RegisterRequest):
 @app.post("/api/login")
 async def login(data: LoginRequest, response: Response):
     #felhasználó lekérése email alapján
-    user = supabase.table("user").select("*").eq("email", data.email).single().execute().data
-    
+    res = supabase.table("user").select("*").eq("email", data.email).execute().data
+    if not res:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    user = res[0]
+
     #felhasználó és a jelszó ellenőrzése
     if not user or not verify_password(data.password, user['password_hash']):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
@@ -423,7 +480,6 @@ async def delete_file(
     else:
         raise HTTPException(status_code=400, detail="No parameter given")
 
-# van
 @app.post("/api/upload")
 async def upload(
     request: Request, 
@@ -431,6 +487,7 @@ async def upload(
     key_hex: Optional[str] = "", 
     files: List[UploadFile] = File(...) 
 ):
+    print("upload")
     #autentikáció
     user_id = authenticate_user(request.cookies.get("session_token"))
     user = supabase.table('user').select('*').eq('id', user_id).single().execute().data
@@ -438,9 +495,8 @@ async def upload(
         raise HTTPException(status_code=404, detail="User not found")
 
     #felhasználó utvonalának meghatározása, és ha kell létrehozása    
-    user_directory = f"uploads/{user['id']}"
-    if not os.path.exists(user_directory):
-        os.makedirs(user_directory)
+    user_directory = Path("uploads") / str(user["id"])
+    user_directory.mkdir(parents=True, exist_ok=True)
     
     file_responses = []
 
@@ -450,7 +506,7 @@ async def upload(
         file_uuid = str(uuid.uuid4())
         file_extension = Path(file.filename).suffix
         new_filename = f"{file_uuid}{file_extension}"
-        file_path = os.path.join(user_directory, new_filename)
+        file_path = user_directory / new_filename
 
         #filename létezésének ellenőrzése
         result = supabase.table('files').select('*').eq('user_id', user_id).eq('filename', file.filename).execute().data
@@ -461,27 +517,26 @@ async def upload(
         try:
             #titkosított fájl esetén
             if encrypted:
-#user-nek nincs kulcsa -> Error (és akkor ezt a külön végponton meg kell csinálni fájlfeltöltés előtt)
+                #user-nek nincs kulcsa
                 if not user['has_key']:
-                    #kulcsgenerálás
-                    key = generate_key()
-                    key_hex = key.hex()
-                    print(key_hex)
-                    #user frissítése, kulcs-hash mentése
-                    """
-                    update_response = supabase.table("user").update({"has_key" : True, "secret_key_hash": hash_password(key_hex)}).eq("id", user_id).execute().data
-                    if not update_response:
-                        raise HTTPException(status_code=400, detail="Failed to update secret key")
-                    """
-                #user-nek van kulcsa, de nem jó kulcsot adott meg
-                elif user['has_key'] and not verify_password(key_hex, user['secret_key_hash']):
-                    raise HTTPException(401, 'Invalid secret key')
+                    raise HTTPException(400, "You don't have secret key")
+                #user-nek van kulcsa
+                elif user['has_key']:
+                    #nem adta meg a kulcsot
+                    if key_hex == "":
+                        raise HTTPException(401, 'Invalid secret key')
+                    #rossz kulcsot adott meg
+                    elif not verify_password(key_hex, user['secret_key_hash']):
+                        raise HTTPException(401, 'Invalid secret key')
                 #user-nek van kulcsa és ezt a kulcsot adta meg
 
                 file_content = await file.read()
                 
                 #fájl titkosítása a felhasználó kulcsával, algoritmusával és mentése a felhasználó mappájába
-                encrypt_file(file_content, file_path, key_hex, user['algo'])
+                try:
+                    encrypt_file(file_content, file_path, key_hex, user['algo'])
+                except Exception as e:
+                    raise RuntimeError(f"{e}")
             
             #sima fájl esetén
             else:
@@ -509,14 +564,13 @@ async def download(
     filename: str,
     key_hex: Optional[str] = ""
 ):
+    print('download')
     #autentikáció
     user_id = authenticate_user(request.cookies.get("session_token"))
     user = supabase.table('user').select('*').eq('id', user_id).single().execute().data
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    print(key_hex)
-
     #fájl adatainak lekérése
     result = supabase.table('files').select('*').eq('user_id', user_id).eq('filename', filename).execute().data
 
@@ -542,7 +596,7 @@ async def download(
             try:
                 #átmeneti útvonal meghatározása
                 decrypted_file_path = TEMP_DIR / f"decrypted_{result[0]['uuid']}"
-                
+
                 #fájl kititkosítása a felhasználó mappájából az átmeneti útvonalra
                 decrypt_file(file_path, decrypted_file_path, key_hex, user['algo'])
 
@@ -553,7 +607,7 @@ async def download(
                 )
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Decryption failed: {str(e)}")
-        
+                
         #sima fájl
         else:
             #fájl visszaadása a felhasználó mappájából
@@ -575,7 +629,6 @@ async def get_user_algo(request: Request):
     #user algoritmusának és has_key paraméterének visszaadása
     return { "algo": user['algo'], "hasSecretKey": user['has_key']}
 
-#van
 @app.post("/api/switch-algo")
 async def switch_algo(request: Request, algo_request: AlgoChangeRequest):
     #autentikáció
@@ -595,27 +648,24 @@ async def switch_algo(request: Request, algo_request: AlgoChangeRequest):
     #ha user-nek van titkosított fájlja
     if encrypted_files:
         #megadott titkos kulcs helyes
-        if verify_password(algo_request.current_sk, user['secret_key_hash']):
-            
-            #user titkos fájljainak kititkosítása
-            decrypt_user_files(user_id, algo_request.current_sk, encrypted_files, user['algo'])
-            
-            #új kulcs generálás
-            new_key = generate_key()
-            new_key_hex = new_key.hex()
-            
-            #user titkos fájljainak újratitkosítás az új kulccsal
-            encrypt_user_files(user_id, new_key_hex, encrypted_files, algo_request.algo)
-            
-            #adatbázisban a hash és az algo frissítése
-            update_response = supabase.table('user').update({'secret_key_hash': hash_password(new_key_hex), 'algo': algo_request.algo}).eq('id', user_id).execute()
-            if not update_response:
-                raise HTTPException(status_code=400, detail="Failed to update secret key hash and algo")
-            
-#átmeneti fájlok törlése
+        if user['has_key'] and verify_password(algo_request.key_hex, user['secret_key_hash']):
+            try:
+                #user titkos fájljainak kititkosítása
+                decrypt_user_files(user_id, algo_request.key_hex, encrypted_files, user['algo'])
 
-            #új kulcs visszaadása
-            return JSONResponse(content={"new_secret_key": f"${new_key_hex}"})
+                #user titkos fájljainak újratitkosítása
+                encrypt_user_files(user_id, algo_request.key_hex, encrypted_files, algo_request.algo)
+
+                #adatbázisban az algo frissítése
+                update_response = supabase.table('user').update({'algo': algo_request.algo}).eq('id', user_id).execute()
+                if not update_response:
+                    raise HTTPException(status_code=400, detail="Failed to update secret key hash and algo")
+            except RuntimeError as e:
+                print(f"{e}")
+                raise HTTPException(status_code=400, detail="Encryption or decryption failed")
+
+            #log
+            return JSONResponse(content={"message": f"Algorithm updated to {algo_request.algo}"})
         
         #megadott titkos kulcs helytelen
         else:
@@ -631,18 +681,20 @@ async def switch_algo(request: Request, algo_request: AlgoChangeRequest):
         #log
         return JSONResponse(content={"message": f"Algorithm updated to {algo_request.algo}"})
     
-
-    
-
+    # A kulcsot nem bántjuk, egy kulccsal működik minden
     # Van titkosított fájl?
         # ha van => van titkos kulcs => megnézzük, hogy egyezik-e a megadottal
-            # ha egyezik => kititkosítani mindent, genrálni új kulcsot az új algóval, újratitkosítani mindent, firssíteni a kulcs hash-t és az algot
+            # ha egyezik => kititkosítani mindent, újratitkosítani mindent, firssíteni az algot
             # ha nem => Error
-        # ha nincs => simán lecseréljük az algoritmus, és generálunk egy kulcsot
+        # ha nincs => simán lecseréljük az algoritmus
 
-    return {'message': 'Hi :)'}
-
-@app.post("/api/gen-sk")
+#ha szeretnénk, hogy lehessen új kulcsot kérni:
+            # titkosított fájlok kititkosítása a régi kulccsal
+            # új kulcs generálás
+            # titkosítás az új kulccsal
+            # régi kulcs hashének lecserélése az új hashére
+    
+@app.get("/api/gen-sk")
 async def gen_sk(request: Request, current_sk: Optional[str] = ""):
     #autentikáció
     user_id = authenticate_user(request.cookies.get("session_token"))
@@ -652,13 +704,8 @@ async def gen_sk(request: Request, current_sk: Optional[str] = ""):
     
     #user-nek már van kulcsa
     if user['has_key']:
-        #if current_sk == "" or not verify_password(current_sk, user['secret_key_hash']):
         raise HTTPException(status_code=400, detail="You already have a secret key")
-        #ha szeretnénk, hogy lehessen új kulcsot kérni:
-            # titkosított fájlok kititkosítása a régi kulccsal
-            # új kulcs generálás
-            # titkosítás az új kulccsal
-            # régi kulcs hashének lecserélése az új hashére
+        
     #user-nek még nincs kulcsa
     else:
         #kulcsgenerálás
@@ -673,6 +720,16 @@ async def gen_sk(request: Request, current_sk: Optional[str] = ""):
         #kulcs visszaadása
         return key_hex
 
+@app.post("/api/verify-secret-key")
+async def verify_sicret_key(request: Request, key_hex: str):
+    #autentikáció
+    user_id = authenticate_user(request.cookies.get("session_token"))
+    user = supabase.table('user').select('*').eq('id', user_id).single().execute().data
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    #validáció visszaadása
+    return verify_password(key_hex, user['secret_key_hash'])
 
 
 #######
@@ -706,4 +763,65 @@ def generate_unique_filename(file_name: str) -> str:
 def check_file_exists(file_path: str) -> bool:
     return os.path.exists(file_path)
 
+"""
 
+def encrypt_user_files(user_id: str, key: str, files_to_encrypt: list, algo: str):
+    #user mappájának ellenőrzése, ha kell létrehozása
+    user_upload_dir = os.path.join(UPLOADS_DIR, str(user_id))
+    os.makedirs(user_upload_dir, exist_ok=True)
+
+    #fájlok feldolgozása
+    for file in files_to_encrypt:
+        #fájlnév és útvonalak meghatározása
+        filename = file['uuid']
+        input_path = os.path.join(TEMP_DIR, filename)
+        output_path = os.path.join(user_upload_dir, filename)
+
+        #fájl létezésének ellenőrzése
+        if not os.path.exists(input_path):
+            print(f"Fájl nem található: {input_path}, kihagyva.")
+            continue
+
+        #titkosítás
+        try:
+            encrypt_file(input_path, output_path, key, algo)
+            print(f"Sikeresen titkosítva: {filename}")
+        except Exception as e:
+            #print(f"Hiba a {filename} titkosításakor: {e}")
+            raise RuntimeError(f"Hiba a {input_path} titkosításakor: {e}")
+        #átmeneti fájl törlése a temp mappából
+        finally:
+            # Törlés az input fájlról, hogy ne maradjon el a folyamat végén
+            if os.path.exists(input_path):
+                os.remove(input_path)
+                print(f"Átmeneti fájl törölve: {input_path}")
+
+                
+                
+def decrypt_user_files(user_id: str, key: str, encrypted_files: list, algo: str):
+    #átmeneti mappa ellenőrzése, ha kell létrehozása
+    os.makedirs(TEMP_DIR, exist_ok=True)
+
+    #fájlok feldolgozása
+    for file in encrypted_files:
+        #fájlnév és útvonalak meghatározása
+        filename = file['uuid']
+        input_path = os.path.join(UPLOADS_DIR, str(user_id), filename)
+        output_path = os.path.join(TEMP_DIR, filename)
+
+        #fájl létezésének ellenőrzése
+        if not os.path.exists(input_path):
+            raise RuntimeError(f"Fájl nem található: {input_path}")
+
+        #visszafejtés
+        try:
+            decrypt_file(input_path, output_path, key, algo)
+            print(f"Sikeresen kititkosítva: {filename}")
+        except Exception as e:
+            #print(f"Hiba a {filename} kititkosításakor: {e}")
+            raise RuntimeError(f"Hiba a {input_path} kititkosításakor: {e}")
+
+
+    #log
+    print(f"Minden fájl kititkosítva ide: {TEMP_DIR}")
+                """

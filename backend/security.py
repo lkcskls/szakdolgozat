@@ -53,8 +53,8 @@ def set_session_cookie(response: Response, user_id: int):
         key="session_token",
         value=session_token,
         httponly=True,
-        secure=False,
-        samesite="Lax",
+        secure=True,
+        samesite="none",
         max_age=SESSION_EXPIRY
     )
 
@@ -68,7 +68,7 @@ def delete_session_cookie(response: Response):
     response.delete_cookie (
         key="session_token",
         httponly=True,
-        secure=False,
+        secure=True,
         samesite="Lax",
         path="/"
     )

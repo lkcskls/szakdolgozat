@@ -49,7 +49,7 @@ export default function FileUploadModal({ onUploadComplete }: FileUploadModalPro
 
         try {
             console.log(keyHex)
-            await uploadFiles(files, encrypted);
+            await uploadFiles(files, encrypted, keyHex);
 
             setIsOpen(false);  // Bezárja a modált sikeres feltöltés után
             setFiles([]);  // Feltöltés után töröljük a fájlokat

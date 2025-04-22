@@ -19,6 +19,8 @@ import { changeAlgorithm, getAlgos, getUserAlgo } from "@/lib/api"
 import { useEffect, useState } from "react"
 import { Spinner } from "@/components/Spinner"
 import { useKey } from "@/components/KeyProvider"
+import { GenSecretKey } from "@/components/GenSecretKey"
+import KeyInpupt from "@/components/KeyInput"
 
 export default function SettingsPage() {
     const [userAlgo, setUserAlgo] = useState<string>("");
@@ -26,7 +28,7 @@ export default function SettingsPage() {
     const [algos, setAlgos] = useState<{ name: string }[]>([]);
     const [selectedAlgo, setSelectedAlgo] = useState("");
     const [loading, setLoading] = useState<boolean>(true);
-    const {keyHex } = useKey();
+    const { keyHex } = useKey();
 
     useEffect(() => {
         const fetchAlgos = async () => {
@@ -91,49 +93,55 @@ export default function SettingsPage() {
                                         </div>
                                         <div className="flex justify-between">
                                             <div>
-                                            <p><b>You have a secret key:</b></p>
+                                                <p><b>You have a secret key:</b></p>
                                             </div>
                                             <div>
                                                 <p>{hasKey ? <>Yes</> : <>No</>}</p>
                                             </div>
                                         </div>
-                                        
+
                                         <br />
 
-                                        <form>
-                                            <div className="grid w-full items-center gap-4">
-                                                <div className="flex flex-col space-y-1.5">
-                                                    <Label htmlFor="algo">Change your algorithm:</Label>
-                                                    <Select value={selectedAlgo} onValueChange={setSelectedAlgo}>
-                                                        <SelectTrigger id="algo">
-                                                            <SelectValue placeholder="Algorithms" />
-                                                        </SelectTrigger>
-                                                        <SelectContent position="popper">
-                                                            {algos.map((algo) => (
-                                                                <SelectItem key={algo.name} value={algo.name}>
-                                                                    {algo.name}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
+                                        {hasKey && keyHex == "" ? <>
+                                            <p>To change algorithm enter your secret key</p>
+                                            <KeyInpupt/>
+                                        </> :
+                                            <form>
+                                                <div className="grid w-full items-center gap-4">
+                                                    <div className="flex flex-col space-y-1.5">
+                                                        <Label htmlFor="algo">Change your algorithm:</Label>
+                                                        <Select value={selectedAlgo} onValueChange={setSelectedAlgo}>
+                                                            <SelectTrigger id="algo">
+                                                                <SelectValue placeholder="Algorithms" />
+                                                            </SelectTrigger>
+                                                            <SelectContent position="popper">
+                                                                {algos.map((algo) => (
+                                                                    <SelectItem key={algo.name} value={algo.name}>
+                                                                        {algo.name}
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
 
-                                                    {hasKey ?
-                                                        <>
-                                                            <Label htmlFor="genKey">Generate </Label>
-                                                            <Button>Generate</Button>
-                                                        </>
-                                                        :
-                                                        <>
-                                                            <Label htmlFor="genKey">Generate your secret key:</Label>
-                                                            <Button>Generate</Button>
-                                                        </>
-                                                    }
-                                                    <p className="text-xs">Select and save the chosen algoritm, than generate secret key!</p>
-                                                    <p className="text-xs">All your files are encrypted with one algoritm and one key. If you change algorithm or generate new key, every encrypted file will be re-encrypted.</p>
+                                                        {hasKey ?
+                                                            <>
+                                                                <p><b>You already have a secret key</b></p>
+                                                            </>
+                                                            :
+                                                            <>
+                                                                <Label htmlFor="genKey">Generate your secret key:</Label>
+                                                                <GenSecretKey></GenSecretKey>
+                                                            </>
+                                                        }
+                                                        <p className="text-xs">Select and save the chosen algoritm, than generate secret key!</p>
+                                                        <p className="text-xs">All your files are encrypted with one algoritm and one key. If you change algorithm or generate new key, every encrypted file will be re-encrypted.</p>
 
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </form>
+                                            </form>
+                                        }
+
+
                                     </>
                                 }
                             </CardContent>

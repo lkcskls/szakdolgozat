@@ -39,10 +39,8 @@ export function LoginForm({
     catch (err: unknown) {
       if (err instanceof Error) {
         console.error("Hiba:", err.message)
-        toast.error("Hiba történt", { description: err.message })
       } else {
         console.error("Ismeretlen hiba:", err)
-        toast.error("Ismeretlen hiba történt")
       }
     }
     

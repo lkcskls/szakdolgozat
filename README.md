@@ -4,17 +4,19 @@ A szerver működése kisebb felhasználószámra van optimalizálva, nagyobb fe
 Ideális lehet kisebb cégeknek, szervezeteknek saját fájlok biztonságos tárolására, esetleg családi felhasználásra.
 
 ## Követelmények a témabejelentő alapján:
--- Felhasználói fiók
-  -- Regisztáció
+-• Felhasználói fiók
+  - Regisztáció
   -- Bejelentkezés
   -- Kijelentkezés
+  - Adatok módosítása
 -- Fájlkezelés
   -- Feltöltés
   -- Letöltés
   -- Titkosított tárolás
 - Szerver
   - Poszt-kvantum kulcscsere (nem kell, hogy módosítható legyen)
-  - Titkosító algoritmus választható (csak a felhasználó fájljaira vonatkozik)
+  -- Titkosító algoritmus választható (csak a felhasználó fájljaira vonatkozik)
+- TESZTELÉS
 
 ## Használt technológiák:
 - Backend: fastAPI
