@@ -1,10 +1,10 @@
 # Quickstart
 
 ## OpenSSL + OQS Provider  
-- Ubuntu 
+### Ubuntu 
         https://developer.ibm.com/tutorials/awb-quantum-safe-openssl/
 
-- MacOS
+### MacOS
         xcode-select --install
         brew install cmake ninja git openssl
 
@@ -69,7 +69,7 @@
         
 
 ## CA Certificate, hogy localhost-on tesztelhessük https-t
-https://deliciousbrains.com/ssl-certificate-authority-for-local-https-development/
+### https://deliciousbrains.com/ssl-certificate-authority-for-local-https-development/
         backend/cert:
         openssl genrsa -des3 -out myCA.key 2048
                 passphrase: 1234
@@ -115,7 +115,7 @@ https://deliciousbrains.com/ssl-certificate-authority-for-local-https-developmen
         make -j$(sysctl -n hw.ncpu)
         make install
 
-        #edit proxy: custom-nginx/conf/nginx.conf
+        #proxy kódja: custom-nginx/conf/nginx.conf
 
         export CUSTOM_NGINX=$WORKSPACE/custom-nginx
         
