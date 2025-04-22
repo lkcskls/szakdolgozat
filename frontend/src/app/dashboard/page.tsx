@@ -10,6 +10,7 @@ import { useEffect, useState } from "react"
 import FileUploadModal from "@/components/FileUploadModel"
 import { RefreshButton } from "@/components/RefreshButton"
 import KeyInpupt from "@/components/KeyInput"
+import { Spinner } from "@/components/Spinner"
 
 
 export default function Page() {
@@ -64,7 +65,7 @@ export default function Page() {
 
                 {loading ? <>
                   <div className="container mx-auto py-10">
-                    <DataTable columns={columns(refreshFiles)} data={[]} onDataChanged={refreshFiles} />
+                    <Spinner/>
                   </div>
                 </> : <>
                   <div className="container mx-auto py-10">

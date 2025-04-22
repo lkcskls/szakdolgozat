@@ -142,7 +142,9 @@ A felhasználó által titkosított fájlok mindig egy algoritmussal, és egy ku
 - encrypted_files: list[str #file_names] | None #json-ként tárolva, feltöltés után a fájlnév nem módosítható!
 
 ## .env
-- ALGOS=["AES_128", "AES_256"]
+- SUPABASE_URL=''
+- SUPABASE_KEY=''
+- SESSION_KEY=''
 
 # Gondolkodtató:
 - Mi legyen, ha a felhasználónak van kulcsa, de nincs titkosított fájlja? - Régi kulcs használata, hogy konzisztens legyen
@@ -156,9 +158,9 @@ A felhasználó által titkosított fájlok mindig egy algoritmussal, és egy ku
 - választható soft vagy hard delete
 - email ellenőrzése kóddal, authentikátorok használata
 - már a felhasználói oldalon megtörténik a titkosítás, és így töltődik fel a szerverre, így nem kell bízni a szerverben sem
+- minden meglévő fájl mentése egy zip-ként
+- fiók törlése minden meglévő fájlal
 
 ## Jegyzetek:
 felhasználó kulcsának tárolására txt helyett: one password
 
-  
-  

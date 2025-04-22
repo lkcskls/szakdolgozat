@@ -28,6 +28,7 @@ export default function SettingsPage() {
     const [algos, setAlgos] = useState<{ name: string }[]>([]);
     const [selectedAlgo, setSelectedAlgo] = useState("");
     const [loading, setLoading] = useState<boolean>(true);
+    const [updating, setUpdating] = useState<boolean>(false);
     const { keyHex } = useKey();
 
     useEffect(() => {
@@ -49,10 +50,15 @@ export default function SettingsPage() {
         fetchAlgos();
     }, []);
 
-    function handleSave() {
-        console.log(selectedAlgo)
-        changeAlgorithm(selectedAlgo, keyHex)
-        setUserAlgo(selectedAlgo)
+    async function handleSave() {
+        setUpdating(true)
+        try {
+            console.log(selectedAlgo)
+            await changeAlgorithm(selectedAlgo, keyHex)
+            setUserAlgo(selectedAlgo)
+        }
+        catch { }
+        setUpdating(false)
     }
 
     return (
@@ -104,7 +110,7 @@ export default function SettingsPage() {
 
                                         {hasKey && keyHex == "" ? <>
                                             <p>To change algorithm enter your secret key</p>
-                                            <KeyInpupt/>
+                                            <KeyInpupt />
                                         </> :
                                             <form>
                                                 <div className="grid w-full items-center gap-4">
@@ -146,7 +152,7 @@ export default function SettingsPage() {
                                 }
                             </CardContent>
                             <CardFooter className="flex justify-between">
-                                <Button onClick={handleSave}>Save</Button>
+                                <Button disabled={updating} onClick={handleSave}>Save</Button>
                             </CardFooter>
                         </Card>
                     </div>
