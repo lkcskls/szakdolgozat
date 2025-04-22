@@ -18,7 +18,6 @@ from io import BytesIO
 import shutil
 import uuid
 import os
-import ssl
 
 
 
@@ -81,7 +80,6 @@ class AlgoChangeRequest(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("✅ Server: setup ready")
-    print(ssl.OPENSSL_VERSION)
 
     yield 
     

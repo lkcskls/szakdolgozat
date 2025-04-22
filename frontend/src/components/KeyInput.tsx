@@ -5,6 +5,7 @@ import { useKey } from "./KeyProvider";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { verifySecretKey } from "@/lib/api";
+import { toast } from "sonner";
 
 export default function KeyInpupt() {
     const [input, setInput] = useState<string>("")
@@ -12,12 +13,17 @@ export default function KeyInpupt() {
 
     async function handleKeyHexSave(){
         const valid = await verifySecretKey(input)
-        if(valid) setKeyHex(input)
+        if(valid) {
+            setKeyHex(input)
+            toast("Secret key saved")
+        }
+        else toast("Invalid secret key")
     }
 
     function handleKeyHexRemove(){
         setKeyHex("")
         setInput("")
+        toast("Secret key removed")
     }
 
     return (

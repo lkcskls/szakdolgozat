@@ -21,6 +21,7 @@ import { Spinner } from "@/components/Spinner"
 import { useKey } from "@/components/KeyProvider"
 import { GenSecretKey } from "@/components/GenSecretKey"
 import KeyInpupt from "@/components/KeyInput"
+import { toast } from "sonner"
 
 export default function SettingsPage() {
     const [userAlgo, setUserAlgo] = useState<string>("");
@@ -56,6 +57,7 @@ export default function SettingsPage() {
             console.log(selectedAlgo)
             await changeAlgorithm(selectedAlgo, keyHex)
             setUserAlgo(selectedAlgo)
+            toast("Algorithm updated successfully")
         }
         catch { }
         setUpdating(false)
@@ -152,7 +154,7 @@ export default function SettingsPage() {
                                 }
                             </CardContent>
                             <CardFooter className="flex justify-between">
-                                <Button disabled={updating} onClick={handleSave}>Save</Button>
+                                <Button disabled={updating || selectedAlgo == userAlgo} onClick={handleSave}>Save</Button>
                             </CardFooter>
                         </Card>
                     </div>

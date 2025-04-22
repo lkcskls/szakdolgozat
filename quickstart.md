@@ -4,7 +4,7 @@
 ### Ubuntu 
         https://developer.ibm.com/tutorials/awb-quantum-safe-openssl/
 
-### MacOS
+### macOS-en kicsit más:
         xcode-select --install
         brew install cmake ninja git openssl
 
@@ -68,7 +68,7 @@
         $BUILD_DIR/bin/openssl list -providers -verbose -provider oqsprovider
         
 
-## CA Certificate, hogy localhost-on tesztelhessük https-t
+## CA Certificate, hogy localhost-on tesztelhessük https-t (macOs Keychain Access)
 ### https://deliciousbrains.com/ssl-certificate-authority-for-local-https-development/
         backend/cert:
         openssl genrsa -des3 -out myCA.key 2048
@@ -101,6 +101,8 @@
 
 
 ## NgingX buildelése buildelése OQS-es OpenSSL-el
+### build
+        export WORKSPACE=/Users/kolosmacbook/Desktop/oqs
         cd $WORKSPACE
         
         wget http://nginx.org/download/nginx-1.26.0.tar.gz
@@ -122,17 +124,28 @@
         $CUSTOM_NGINX/sbin/nginx -c $CUSTOM_NGINX/conf/nginx.conf
         $CUSTOM_NGINX/sbin/nginx -s stop
 
+### futtatás (külön terminálban)
+#### indítás
+        export WORKSPACE=/Users/kolosmacbook/Desktop/oqs
+        export CUSTOM_NGINX=$WORKSPACE/custom-nginx
+        $CUSTOM_NGINX/sbin/nginx -c $CUSTOM_NGINX/conf/nginx.conf
+#### leállítás
+        export WORKSPACE=/Users/kolosmacbook/Desktop/oqs
+        export CUSTOM_NGINX=$WORKSPACE/custom-nginx
+        $CUSTOM_NGINX/sbin/nginx -s stop
+
 
 ## /backend:
+        cd backend
         python3 -m venv env
         source env/bin/activate
-
         pip install --no-cache-dir -r requirements.txt
-        
+
         uvicorn server:app --host 0.0.0.0 --port 8000 --reload
 
 
 ## /frontend:
+        cd frontend
         npm i
         npm run generate-types
         npm run dev
@@ -143,5 +156,10 @@
         npm start
 
 
+## test user:
+t@g.c
+t
+
+cae9b6905136901b9f17fc6389fbdf9e00d10fb05ffcdf40e98f45014ee5fdcc
 
 

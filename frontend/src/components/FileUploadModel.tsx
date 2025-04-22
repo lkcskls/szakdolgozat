@@ -7,6 +7,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { uploadFiles } from "@/lib/api";
 import { useKey } from "./KeyProvider";
+import { toast } from "sonner";
 
 interface FileUploadModalProps {
     onUploadComplete: () => void
@@ -54,6 +55,7 @@ export default function FileUploadModal({ onUploadComplete }: FileUploadModalPro
             setIsOpen(false);  // Bezárja a modált sikeres feltöltés után
             setFiles([]);  // Feltöltés után töröljük a fájlokat
             onUploadComplete(); 
+            toast("File uploaded succesfully")
         } catch (err) {
             console.error("Upload failed", err);
         } finally {
