@@ -1,9 +1,10 @@
 # Quickstart
 
-## OpenSSL + OQS Provider      
-- Ubuntu: https://developer.ibm.com/tutorials/awb-quantum-safe-openssl/
+## OpenSSL + OQS Provider  
+- Ubuntu 
+        https://developer.ibm.com/tutorials/awb-quantum-safe-openssl/
 
-- MacOS:
+- MacOS
         xcode-select --install
         brew install cmake ninja git openssl
 
@@ -67,9 +68,9 @@
         $BUILD_DIR/bin/openssl list -providers -verbose -provider oqsprovider
         
 
-## CA Certificate, hogy localhost-on tesztelhessük a https-t
+## CA Certificate, hogy localhost-on tesztelhessük https-t
 https://deliciousbrains.com/ssl-certificate-authority-for-local-https-development/
-backend/cert:
+        backend/cert:
         openssl genrsa -des3 -out myCA.key 2048
                 passphrase: 1234
         openssl req -x509 -new -nodes -key myCA.key -sha256 -days 1825 -out myCA.pem
@@ -99,7 +100,7 @@ backend/cert:
         killall "Google Chrome"
 
 
-## NgingX
+## NgingX buildelése buildelése OQS-es OpenSSL-el
         cd $WORKSPACE
         
         wget http://nginx.org/download/nginx-1.26.0.tar.gz
