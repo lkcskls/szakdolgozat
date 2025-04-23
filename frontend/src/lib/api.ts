@@ -24,7 +24,7 @@ export async function getFiles(): Promise<FileTableData[]> {
         credentials: 'include',
     });
     if (!res.ok) {
-        toast("Files fetching failed")
+        toast("Failed to fetch files")
     }
     return await res.json();
 };
@@ -59,8 +59,8 @@ export const registerUser = async (name: string, email: string, secondEmail: str
         body: JSON.stringify({ name: name, email: email, second_email: secondEmail, password: password }),
     });
     if (!res.ok) {
-        toast("Signup failed")
-        throw new Error("Signup failed");
+        toast("Failed to sign up")
+        throw new Error("Failed to sign up");
     }
     return res.json();
 };
@@ -97,8 +97,8 @@ export async function getUser(): Promise<User> {
         credentials: 'include'
     });
     if (!res.ok) {
-        toast("User fetching failed")
-        throw new Error("User fetching failed");
+        toast("Failed to fetch user data")
+        throw new Error("Failed to fetch user data");
     }
     return res.json();
 };
@@ -122,8 +122,8 @@ export const editUser = async (updateData: {
         credentials: 'include'
     });
     if (!res.ok) {
-        toast("Edit user failed")
-        throw new Error("Edit user failed");
+        toast("Failed to update user")
+        throw new Error("Failed to update user");
     }
     return res.json();
 };
@@ -136,13 +136,12 @@ export const downloadFileByName = async (filename: string, keyHex: string) => {
     });
     console.log(res)
     if (!res.ok) {
-        toast("File can't be shown, maybe your secret key is invalid")
-        throw new Error("File can't be shown, maybe your secret key is invalid");
+        toast("File could not be opened. Your secret key might be invalid.")
+        throw new Error("File could not be opened. Your secret key might be invalid.");
     }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     window.open(url, "_blank");
-    // return res.blob(); // vagy res.json() ha JSON választ vársz
 };
 
 export const deleteFileByName = async (filename: string) => {
@@ -151,8 +150,8 @@ export const deleteFileByName = async (filename: string) => {
         credentials: 'include'
     });
     if (!res.ok) {
-        toast("Delete file failed")
-        throw new Error("Delete file failed");
+        toast("Failed to delete file")
+        throw new Error("Failed to delete file");
     }
     return await res.json();
 };
@@ -163,8 +162,8 @@ export async function getAlgos() {
         credentials: "include",
     });
     if (!res.ok) {
-        toast("Algorithms fetching failed")
-        throw new Error("Algorithms fetching failed");
+        toast("Failed to fetch algorithms")
+        throw new Error("Failed to fetch algorithms");
     }
     return res.json();
 };
@@ -175,8 +174,8 @@ export async function getUserAlgo(): Promise<UserAlgoResponse> {
         credentials: "include",
     });
     if (!res.ok) {
-        toast("User's algorithm fetching failed")
-        throw new Error("User's algorithm fetching failed");
+        toast("Failed to fetch user's algorithm")
+        throw new Error("Failed to fetch user's algorithm");
     }
     const data: UserAlgoResponse = await res.json();
     return data;
@@ -204,8 +203,8 @@ export const changeAlgorithm = async (newAlgo: string, key_hex: string) => {
         console.log('Algorithm changed:', data.message);
         return data;
     } catch (err) {
-        toast("Algorithm change failed")
-        console.error('Algorithm change failed:', err);
+        toast("Failed to change algorithm ")
+        console.error('Failed to change algorithm:', err);
         throw err; // A hiba továbbadásához
     }
 };
@@ -216,8 +215,8 @@ export const genSecretKey = async (key_hex: string) => {
         credentials: "include"
     });
     if (!res.ok) {
-        toast("Secret key generation failed")
-        throw new Error("Secret key generation failed");
+        toast("Failed to generat secret key")
+        throw new Error("Failed to generat secret key");
     }
     return res.json();
 };
@@ -245,7 +244,7 @@ export async function verifySecretKey(keyHex: string): Promise<boolean> {
         // Feltételezve, hogy a válasz egy boolean érték
         return data;
     } catch (error) {
-        console.error('Error verifying secret key:', error);
+        console.error('Failed to verify secret key:', error);
         return false; // Hibás válasz esetén false-t adunk vissza
     }
 }

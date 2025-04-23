@@ -16,7 +16,7 @@ import { genSecretKey } from "@/lib/api";
 
 
 export function GenSecretKey() {
-    const { keyHex, setKeyHex} = useKey();
+    const { keyHex, setKeyHex } = useKey();
 
     return (
         <Dialog onOpenChange={async (open) => {
@@ -34,6 +34,8 @@ export function GenSecretKey() {
                     <DialogTitle>Here is your secret key</DialogTitle>
                     <DialogDescription>
                         To encrypt or decrypt any file, you will need this key, so handle it with care!
+                        Encrypted files cannot be accessed without your secret key.
+                        You can store your secret key in a text file or save it in a password manager.
                     </DialogDescription>
                 </DialogHeader>
 
