@@ -66,7 +66,7 @@
 
         TESZT:
         $BUILD_DIR/bin/openssl list -providers -verbose -provider oqsprovider
-        
+
 
 ## CA Certificate, hogy localhost-on tesztelhessük https-t (macOs Keychain Access)
 ### https://deliciousbrains.com/ssl-certificate-authority-for-local-https-development/
@@ -159,7 +159,9 @@
 ## test user:
 t@g.c
 t
-
 cae9b6905136901b9f17fc6389fbdf9e00d10fb05ffcdf40e98f45014ee5fdcc
+
+tibor@test.com
+testtibor
 
 

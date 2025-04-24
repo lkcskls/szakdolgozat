@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from contextlib import asynccontextmanager
 from supabase import create_client, Client
 from pydantic import BaseModel, EmailStr
-from security import hash_password, verify_password, set_session_cookie, delete_session_cookie, verify_session, gen_backup_key, generate_key, aes_encrypt_file, aes_decrypt_file, chacha20_encrypt_file, chacha20_decrypt_file
+from security import hash_password, verify_password, set_session_cookie, delete_session_cookie, verify_session, generate_key, aes_encrypt_file, aes_decrypt_file, chacha20_encrypt_file, chacha20_decrypt_file
 from datetime import datetime
 from fastapi import FastAPI, HTTPException, Response, Request, UploadFile, File
 from dotenv import load_dotenv
@@ -42,7 +42,6 @@ TEMP_DIR        = Path("temp")
 class RegisterRequest(BaseModel):
     name: str
     email: EmailStr
-    second_email: EmailStr
     password: str
 
 class LoginRequest(BaseModel):
@@ -56,12 +55,9 @@ class User(BaseModel):
     id: int
     name: str
     email: EmailStr
-    second_email: EmailStr
     password_hash: str
-    # backup_key_hash: str # ez ne legyen benne a típusban, csak az adatbázisban
     algo: str
     has_key: bool
-    key_number: int
 
 class UploadRequest(BaseModel):
     encrypted: Optional[bool] = False
@@ -85,14 +81,21 @@ async def lifespan(app: FastAPI):
     
     print("🛑 Server: shutdown complete")
 
-def is_email_taken(email: EmailStr) -> bool:
-    #email keresése az adatbázisban
-    response = supabase.table("user").select("id").eq("email", email).execute()
+def is_email_taken(email: EmailStr, user_id: int) -> bool:
+    #email keresése az adatbázisban, a felhasználó kizárásával
+    response = supabase.table("user").select("id").eq("email", email).neq("id", user_id).execute()
     return len(response.data) > 0 
 
-### van
-def is_filename_taken() -> bool:
-    ...
+def is_filename_taken(filename: str, user_id: int) -> bool:
+    response = (
+        supabase
+        .table("files")
+        .select("id")
+        .eq("filename", filename)
+        .eq("user_id", user_id)
+        .execute()
+    )
+    return len(response.data) > 0
 
 def authenticate_user(session_token: str) -> int:
     #ha nincs session_token
@@ -285,39 +288,27 @@ async def root():
 async def register(data: RegisterRequest):
     name = data.name
     email = data.email
-    second_email = data.second_email
     password = data.password
 
     #email létezésének ellenőrzése
-    if is_email_taken(email):
+    if is_email_taken(email, -1):
         raise HTTPException(status_code=400, detail="Email already in use")
-    
-    #email egyezés ellenőrzése
-    if email == second_email:
-        raise HTTPException(status_code=400, detail="The main and the secondary email can not be the same")
-
-    #visszaállítókulcs generálás
-    backup_key = gen_backup_key()
 
     #jelszavak biztonságos mentése
     password_hash =hash_password(password)
-    backup_key_hash = hash_password(backup_key)
     
     #új user elmentése
     new_user = {
         'name': name,
         'email': email,
-        'second_email': second_email,
         'password_hash': password_hash,
-        'backup_key_hash': backup_key_hash,
         'algo': DEFAULT_ALGO,
         'has_key': False,
-        'key_number': 0,
     } 
     supabase.table('user').insert(new_user).execute()
 
     #visszaállítókulcs visszaadása
-    return {'message': 'Registration successful', 'backup_key': backup_key}
+    return {'message': 'Registration successful'}
 
 @app.post("/api/login")
 async def login(data: LoginRequest, response: Response):
@@ -357,14 +348,13 @@ async def get_user(request: Request):
             'id': user['id'],
             'name': user['name'], 
             'email': user['email'], 
-            'second_email': user['second_email'], 
             'algo': user['algo'], 
         }
     else: 
         raise HTTPException(status_code=404, detail="User not found")
 
 @app.put("/api/user")
-async def edit_user(request: Request, name: Optional[str] = None, email: Optional[EmailStr] = None, second_email: Optional[EmailStr] = None, password: Optional[str] = None, algo: Optional[str] = None):
+async def edit_user(request: Request, name: Optional[str] = None, email: Optional[EmailStr] = None, password: Optional[str] = None):
     #autentikáció
     user_id = authenticate_user(request.cookies.get("session_token"))
     user = supabase.table('user').select('*').eq('id', user_id).single().execute().data
@@ -377,16 +367,12 @@ async def edit_user(request: Request, name: Optional[str] = None, email: Optiona
     if name:
         update_data["name"] = name
     if email:
-        if is_email_taken(request.email, user["id"]):
+        if is_email_taken(email, user_id):
             raise HTTPException(status_code=400, detail="Email already in use")
         update_data["email"] = email
-    if second_email:
-        update_data["second_email"] = second_email
     if password:
         hashed_password = hash_password(password)
         update_data["password_hash"] = hashed_password
-    if algo:
-        update_data["algo"] = algo
 
     #ha nem érkezett egy paraméter sem
     if not update_data:
@@ -485,7 +471,6 @@ async def upload(
     key_hex: Optional[str] = "", 
     files: List[UploadFile] = File(...) 
 ):
-    print("upload")
     #autentikáció
     user_id = authenticate_user(request.cookies.get("session_token"))
     user = supabase.table('user').select('*').eq('id', user_id).single().execute().data
@@ -500,24 +485,23 @@ async def upload(
 
     #kapott fájlok feldolgozása
     for file in files:
-        #file_path meghatározása (új fájlnév: uuid.kiterjesztés)
-        file_uuid = str(uuid.uuid4())
-        file_extension = Path(file.filename).suffix
-        new_filename = f"{file_uuid}{file_extension}"
-        file_path = user_directory / new_filename
-
-        #filename létezésének ellenőrzése
-        result = supabase.table('files').select('*').eq('user_id', user_id).eq('filename', file.filename).execute().data
-        if result:
-            raise HTTPException(400, "Filename already in use")
-
         #fájl mentése
         try:
+            #file_path meghatározása (új fájlnév: uuid.kiterjesztés)
+            file_uuid = str(uuid.uuid4())
+            file_extension = Path(file.filename).suffix
+            new_filename = f"{file_uuid}{file_extension}"
+            file_path = user_directory / new_filename
+
+            #filename létezésének ellenőrzése
+            if is_filename_taken(file.filename, user_id):
+                raise Exception("Filename already in use")
+
             #titkosított fájl esetén
             if encrypted:
                 #user-nek nincs kulcsa
                 if not user['has_key']:
-                    raise HTTPException(400, "You don't have secret key")
+                    raise HTTPException(401, "You don't have secret key")
                 #user-nek van kulcsa
                 elif user['has_key']:
                     #nem adta meg a kulcsot
@@ -534,7 +518,7 @@ async def upload(
                 try:
                     encrypt_file(file_content, file_path, key_hex, user['algo'])
                 except Exception as e:
-                    raise RuntimeError(f"{e}")
+                    raise Exception(f"{e}")
             
             #sima fájl esetén
             else:
@@ -545,7 +529,7 @@ async def upload(
             #fájl adatainak feltöltése az adatbázisba
             res = supabase.table('files').insert({"filename": file.filename, "user_id": user_id, "encrypted": encrypted, "uuid": new_filename}).execute()
             if not res:
-                    raise HTTPException(400, 'Supabase error while updating files')
+                raise HTTPException(500, 'Supabase error while updating files')
             
             #log
             file_responses.append({"file": file.filename, "status": "uploaded", "error": ''})
@@ -554,6 +538,7 @@ async def upload(
             file_responses.append({"file": file.filename, "status": "failed", "error": str(e)})
 
     #logok visszaadása
+    return file_responses
     return {"message": "Files processed successfully", "files": file_responses}
 
 @app.get("/api/download")

@@ -2,14 +2,9 @@
 
 import * as React from "react"
 import {
-  IconChartBar,
-  IconDashboard,
   IconDatabase,
-  IconFileWord,
   IconInnerShadowTop,
-  IconListDetails,
   IconLogout,
-  IconReport,
   IconSettings,
   IconUsers,
 } from "@tabler/icons-react"
@@ -31,23 +26,6 @@ import { useEffect, useState } from "react"
 
 
 const data = {
-  navMain: [
-    {
-      title: "Every file",
-      url: "#",
-      icon: IconDashboard,
-    },
-    {
-      title: "Public files",
-      url: "#",
-      icon: IconListDetails,
-    },
-    {
-      title: "Encrypted files",
-      url: "#",
-      icon: IconChartBar,
-    },
-  ],
   navSecondary: [
     {
       title: "Settings",
@@ -55,7 +33,7 @@ const data = {
       icon: IconSettings,
     },
     {
-      title: "Account",
+      title: "Account settings",
       url: "/account",
       icon: IconUsers,
     },
@@ -70,16 +48,6 @@ const data = {
       name: "Library",
       url: "/dashboard",
       icon: IconDatabase,
-    },
-    {
-      name: "Public files",
-      url: "#public-files",
-      icon: IconReport,
-    },
-    {
-      name: "Encrypted files",
-      url: "#encrypted-files",
-      icon: IconFileWord,
     },
   ],
 }
@@ -102,7 +70,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             >
               <a href="#">
                 <IconInnerShadowTop className="!size-5" />
-                <span className="text-base font-semibold">LK szakdolgozat</span>
+                <span className="text-base font-semibold">PQC File Storage</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>

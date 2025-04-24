@@ -26,9 +26,6 @@ const formSchema = z.object({
     email: z.string().email({
         message: "Incorrect email format.",
     }),
-    second_email: z.string().email({
-        message: "Incorrect email format.",
-    }),
     password: z.string().min(8, {
         message: "Password must be at least 8 characters.",
     }),
@@ -43,15 +40,14 @@ export function SignUpForm() {
         defaultValues: {
             name: "",
             email: "",
-            second_email: "",
             password: "",
         },
     })
 
     // 2. Define a submit handler.
-    function onSubmit(values: z.infer<typeof formSchema>) {
+    async function onSubmit(values: z.infer<typeof formSchema>) {
         try {
-            const res = registerUser(values.name, values.email, values.second_email, values.password);
+            const res = await registerUser(values.name, values.email, values.password);
             console.log("Siker:", res);
 
             // átirányítás pl. a homepage-re:
@@ -60,10 +56,8 @@ export function SignUpForm() {
         } catch (err: unknown) {
             if (err instanceof Error) {
                 console.error("Hiba:", err.message)
-                toast.error("Hiba történt", { description: err.message })
             } else {
                 console.error("Ismeretlen hiba:", err)
-                toast.error("Ismeretlen hiba történt")
             }
         }
     }
@@ -104,29 +98,12 @@ export function SignUpForm() {
                                 name="email"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Name</FormLabel>
+                                        <FormLabel>Email</FormLabel>
                                         <FormControl>
                                             <Input placeholder="email" {...field} />
                                         </FormControl>
                                         <FormDescription>
                                             Your main email address.
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-
-                            <FormField
-                                control={form.control}
-                                name="second_email"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Name</FormLabel>
-                                        <FormControl>
-                                            <Input placeholder="backup email" {...field} />
-                                        </FormControl>
-                                        <FormDescription>
-                                            Secondary email for backup.
                                         </FormDescription>
                                         <FormMessage />
                                     </FormItem>

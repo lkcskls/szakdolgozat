@@ -160,6 +160,9 @@ A felhasználó által titkosított fájlok mindig egy algoritmussal, és egy ku
 - már a felhasználói oldalon megtörténik a titkosítás, és így töltődik fel a szerverre, így nem kell bízni a szerverben sem
 - minden meglévő fájl mentése egy zip-ként
 - fiók törlése minden meglévő fájlal
+- kliensoldali titkosítés
+- titkos kulcs qr kód
+- dockerizálás
 
 ## Jegyzetek:
 felhasználó kulcsának tárolására txt helyett: one password

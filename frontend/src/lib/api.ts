@@ -4,12 +4,12 @@ import { toast } from 'sonner'
 //user key_hex = "cae9b6905136901b9f17fc6389fbdf9e00d10fb05ffcdf40e98f45014ee5fdcc"
 
 export const BACKEND_BASE_URL = "https://localhost";
+const MAX_FILE_SIZE = 500 //Mb
 
 export type User = {
     id: number
     name: string
     email: string
-    second_email: string
     algo: string
 };
 
@@ -32,6 +32,14 @@ export async function getFiles(): Promise<FileTableData[]> {
 export const uploadFiles = async (files: File[], encrypted: boolean, keyHex: string) => {
     if (files.length === 0) return;
 
+    //fájlméret ellenőrzése
+    const maxTotalSize = MAX_FILE_SIZE * 1024 * 1024; // 500 MB byte-ban
+    const totalSize = files.reduce((acc, file) => acc + file.size, 0);
+    if (totalSize > maxTotalSize) {
+        toast("Total file size exceeds 500 MB limit");
+        throw new Error("Total file size exceeds 500 MB");
+    }
+
     const formData = new FormData();
     files.forEach((file) => {
         formData.append("files", file);
@@ -45,21 +53,19 @@ export const uploadFiles = async (files: File[], encrypted: boolean, keyHex: str
 
     const result = await res.json();
 
-    if (!res.ok) {
-        toast("Upload failed")
-        throw new Error(result.detail || "Upload failed");
-    }
+    toast("Files processed successfully")
+    return result;
 };
 
-export const registerUser = async (name: string, email: string, secondEmail: string, password: string) => {
+export const registerUser = async (name: string, email: string, password: string) => {
     const res = await fetch(`${BACKEND_BASE_URL}/api/register`, {
         method: "POST",
         credentials: 'include',
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name, email: email, second_email: secondEmail, password: password }),
+        body: JSON.stringify({ name: name, email: email, password: password }),
     });
     if (!res.ok) {
-        toast("Failed to sign up")
+        toast("Email already in use")
         throw new Error("Failed to sign up");
     }
     return res.json();
@@ -106,16 +112,12 @@ export async function getUser(): Promise<User> {
 export const editUser = async (updateData: {
     name?: string;
     email?: string;
-    second_email?: string;
     password?: string;
-    algo?: string;
 }) => {
     const query = new URLSearchParams();
     if (updateData.name) query.append("name", updateData.name);
     if (updateData.email) query.append("email", updateData.email);
-    if (updateData.second_email) query.append("second_email", updateData.second_email);
     if (updateData.password) query.append("password", updateData.password);
-    if (updateData.algo) query.append("algo", updateData.algo);
 
     const res = await fetch(`${BACKEND_BASE_URL}/api/user?${query.toString()}`, {
         method: "PUT",
