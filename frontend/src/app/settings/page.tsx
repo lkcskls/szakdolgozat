@@ -21,7 +21,6 @@ import { Spinner } from "@/components/Spinner"
 import { useKey } from "@/components/KeyProvider"
 import { GenSecretKey } from "@/components/GenSecretKey"
 import KeyInpupt from "@/components/KeyInput"
-import { toast } from "sonner"
 
 export default function SettingsPage() {
     const [userAlgo, setUserAlgo] = useState<string>("");
@@ -54,10 +53,8 @@ export default function SettingsPage() {
     async function handleSave() {
         setUpdating(true)
         try {
-            console.log(selectedAlgo)
             await changeAlgorithm(selectedAlgo, keyHex)
             setUserAlgo(selectedAlgo)
-            toast("Algorithm updated successfully")
         }
         catch { }
         setUpdating(false)
@@ -99,14 +96,26 @@ export default function SettingsPage() {
                                                 <p>{userAlgo}</p>
                                             </div>
                                         </div>
-                                        <div className="flex justify-between">
-                                            <div>
-                                                <p><b>You have a secret key:</b></p>
+                                        {hasKey ? <>
+                                            <div className="flex justify-between">
+                                                <div>
+                                                    <p><b>You have a secret key</b></p>
+                                                </div>
+                                                <div>
+                                                    ✔️
+                                                </div>
                                             </div>
-                                            <div>
-                                                <p>{hasKey ? <>Yes</> : <>No</>}</p>
+                                        </> : <>
+                                            <div className="flex justify-between">
+                                                <div>
+                                                    <p><b>You do not have a secret key</b></p>
+                                                </div>
+                                                <div>
+                                                    ✖️
+                                                </div>
                                             </div>
-                                        </div>
+                                        </>}
+
 
                                         <br />
 
@@ -141,8 +150,7 @@ export default function SettingsPage() {
                                                                 <GenSecretKey></GenSecretKey>
                                                             </>
                                                         }
-                                                        <p className="text-xs">Select and save the chosen algoritm, than generate secret key!</p>
-                                                        <p className="text-xs">All your files are encrypted with one algoritm and one key. If you change algorithm or generate new key, every encrypted file will be re-encrypted.</p>
+                                                        <p className="text-xs">Your files are all encrypted with one algorithm and one key. Changing either will cause every file to be re-encrypted.</p>
 
                                                     </div>
                                                 </div>

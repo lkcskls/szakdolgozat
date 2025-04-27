@@ -290,9 +290,13 @@ async def register(data: RegisterRequest):
     email = data.email
     password = data.password
 
-    #email létezésének ellenőrzése
+    #input validáció
     if is_email_taken(email, -1):
         raise HTTPException(status_code=400, detail="Email already in use")
+    if len(name) < 5:
+        raise HTTPException(status_code=400, detail="Name must be at least 5 characters")
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
 
     #jelszavak biztonságos mentése
     password_hash =hash_password(password)
@@ -307,7 +311,6 @@ async def register(data: RegisterRequest):
     } 
     supabase.table('user').insert(new_user).execute()
 
-    #visszaállítókulcs visszaadása
     return {'message': 'Registration successful'}
 
 @app.post("/api/login")
@@ -320,7 +323,7 @@ async def login(data: LoginRequest, response: Response):
 
     #felhasználó és a jelszó ellenőrzése
     if not user or not verify_password(data.password, user['password_hash']):
-        raise HTTPException(status_code=401, detail="Incorrect email or password")
+        raise HTTPException(status_code=401, detail="Invalid email or password")
 
     #session_token beállítása
     set_session_cookie(response, user['id'])
@@ -363,14 +366,18 @@ async def edit_user(request: Request, name: Optional[str] = None, email: Optiona
 
     update_data = {}
 
-    #módosítandó adatok kigyűjtése
+    #módosítandó adatok kigyűjtése és validálása
     if name:
+        if len(name) < 5 :
+            raise HTTPException(status_code=400, detail="Name must be at least 5 characters")
         update_data["name"] = name
     if email:
         if is_email_taken(email, user_id):
             raise HTTPException(status_code=400, detail="Email already in use")
         update_data["email"] = email
     if password:
+        if len(password) < 8:
+            raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
         hashed_password = hash_password(password)
         update_data["password_hash"] = hashed_password
 
@@ -394,7 +401,7 @@ async def get_files(request: Request,):
     result = supabase.table('files').select('*').eq('user_id', user_id).execute().data
     return result
 
-# csak ha érvényes a key_hex
+# csak ha érvényes a key_hex, uuid törlése, csak filename
 @app.delete("/api/files")
 async def delete_file(
     request: Request, 
@@ -419,14 +426,14 @@ async def delete_file(
             #fájl törlése az adatbázisból (filename alapján)
             response = supabase.table("files").delete().eq("user_id", user_id).eq("filename", filename).execute()
             if not response:
-                raise HTTPException(status_code=500, detail="Failed to delete record from database.")
+                raise HTTPException(status_code=500, detail="Failed to delete from database")
 
             #fájl törlése a fájlrendszerből (uuid alapján)
             try:
                 os.remove(file_path)
                 return {"message": f"File '{filename}' deleted successfully."}
             except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Error deleting file: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to delete from server")
         
         #ha nem létezik a fájl az adatbázisban
         else:
@@ -529,7 +536,8 @@ async def upload(
             #fájl adatainak feltöltése az adatbázisba
             res = supabase.table('files').insert({"filename": file.filename, "user_id": user_id, "encrypted": encrypted, "uuid": new_filename}).execute()
             if not res:
-                raise HTTPException(500, 'Supabase error while updating files')
+#ha ez sikertelen, akkor törlődjön a mappájából, vagy addig le se mentődjön
+                raise HTTPException(500, 'Database error while updating files')
             
             #log
             file_responses.append({"file": file.filename, "status": "uploaded", "error": ''})
@@ -568,7 +576,7 @@ async def download(
         if result[0]['encrypted']:
             #felhasználó nem adott meg titkos kulcsot
             if key_hex == "":
-                raise HTTPException(status_code=400, detail="No key_hex parameter given")
+                raise HTTPException(status_code=400, detail="Invalid secret key")
             
             #user-nek van titkos kulcsa, de nem egyezik a felhasználó által megadottal
             if user['secret_key_hash'] and not verify_password(key_hex, user['secret_key_hash']):
@@ -589,7 +597,7 @@ async def download(
                     filename=filename,
                 )
             except Exception as e:
-                raise HTTPException(status_code=400, detail=f"Decryption failed: {str(e)}")
+                raise HTTPException(status_code=400, detail=f"Decryption failed")
                 
         #sima fájl
         else:
@@ -642,24 +650,24 @@ async def switch_algo(request: Request, algo_request: AlgoChangeRequest):
                 #adatbázisban az algo frissítése
                 update_response = supabase.table('user').update({'algo': algo_request.algo}).eq('id', user_id).execute()
                 if not update_response:
-                    raise HTTPException(status_code=400, detail="Failed to update secret key hash and algo")
+                    raise HTTPException(status_code=400, detail="Failed to update database")
             except RuntimeError as e:
                 print(f"{e}")
-                raise HTTPException(status_code=400, detail="Encryption or decryption failed")
+                raise HTTPException(status_code=400, detail="Failed re-encryption")
 
             #log
             return JSONResponse(content={"message": f"Algorithm updated to {algo_request.algo}"})
         
         #megadott titkos kulcs helytelen
         else:
-            raise HTTPException(status_code=401, detail="Secret key invalid")
+            raise HTTPException(status_code=401, detail="Invalid secret key")
     
     #ha user-nek nincs titkosított fájlja
     else:
         #adatbázis frissítése
         update_response = supabase.table('user').update({'algo': algo_request.algo}).eq('id', user_id).execute()
         if not update_response:
-            raise HTTPException(status_code=500, detail="Failed to update algorithm")
+            raise HTTPException(status_code=500, detail="Failed to update database")
 
         #log
         return JSONResponse(content={"message": f"Algorithm updated to {algo_request.algo}"})

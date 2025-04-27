@@ -21,7 +21,7 @@
         ./Configure \
                 --prefix=$BUILD_DIR \
                 no-ssl no-tls1 no-tls1_1 no-afalgeng \
-                no-shared threads -lm darwin64-x86_64-cc
+                no-shared threads -lm darwin64-x86_64-cc \ 
 
         make -j $(sysctl -n hw.ncpu)
         make -j $(sysctl -n hw.ncpu) install_sw install_ssldirs
@@ -63,6 +63,8 @@
 
         export OPENSSL_CONF=$BUILD_DIR/ssl/openssl.cnf
         export OPENSSL_MODULES=$BUILD_DIR/lib
+        export PATH=$BUILD_DIR/bin:$PATH
+
 
         TESZT:
         $BUILD_DIR/bin/openssl list -providers -verbose -provider oqsprovider
@@ -156,12 +158,12 @@
         npm start
 
 
-## test user:
+## test users:
 t@g.c
 t
 cae9b6905136901b9f17fc6389fbdf9e00d10fb05ffcdf40e98f45014ee5fdcc
 
 tibor@test.com
 testtibor
-
+75259b4bc1fdc3d125396ec588bb929ad9cb3b50d0e599b02044040c0f19537b
 

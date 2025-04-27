@@ -33,9 +33,7 @@ export function GenSecretKey() {
                 <DialogHeader>
                     <DialogTitle>Here is your secret key</DialogTitle>
                     <DialogDescription>
-                        To encrypt or decrypt any file, you will need this key, so handle it with care!
-                        Encrypted files cannot be accessed without your secret key.
-                        You can store your secret key in a text file or save it in a password manager.
+                        To encrypt or decrypt your files, you will need this key, so make sure to handle it carefully! <br />
                     </DialogDescription>
                 </DialogHeader>
 

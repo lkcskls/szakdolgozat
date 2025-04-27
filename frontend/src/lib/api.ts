@@ -1,10 +1,10 @@
 import { FileTableData } from "@/components/file-table";
 import { toast } from 'sonner'
 
-//user key_hex = "cae9b6905136901b9f17fc6389fbdf9e00d10fb05ffcdf40e98f45014ee5fdcc"
 
 export const BACKEND_BASE_URL = "https://localhost";
-const MAX_FILE_SIZE = 500 //Mb
+const MAX_UPLOAD_SIZE = 500 //Mb
+
 
 export type User = {
     id: number
@@ -33,7 +33,7 @@ export const uploadFiles = async (files: File[], encrypted: boolean, keyHex: str
     if (files.length === 0) return;
 
     //fájlméret ellenőrzése
-    const maxTotalSize = MAX_FILE_SIZE * 1024 * 1024; // 500 MB byte-ban
+    const maxTotalSize = MAX_UPLOAD_SIZE * 1024 * 1024; // 500 MB byte-ban
     const totalSize = files.reduce((acc, file) => acc + file.size, 0);
     if (totalSize > maxTotalSize) {
         toast("Total file size exceeds 500 MB limit");
@@ -64,11 +64,15 @@ export const registerUser = async (name: string, email: string, password: string
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: name, email: email, password: password }),
     });
+
+    const result = await res.json();
+
     if (!res.ok) {
-        toast("Email already in use")
+        toast(result.detail || "Failed to sign up");
         throw new Error("Failed to sign up");
     }
-    return res.json();
+
+    return result;
 };
 
 export const loginUser = async (email: string, password: string) => {
@@ -78,11 +82,14 @@ export const loginUser = async (email: string, password: string) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
     });
+    const result = await res.json();
+
     if (!res.ok) {
-        toast("Invalid email or password")
+        toast(result.detail || "Failed to log in");
         throw new Error("Login failed");
     }
-    return res.json();
+
+    return result;
 };
 
 export const logoutUser = async () => {
@@ -123,11 +130,15 @@ export const editUser = async (updateData: {
         method: "PUT",
         credentials: 'include'
     });
+
+    const result = await res.json();
+
     if (!res.ok) {
-        toast("Failed to update user")
+        toast(result.detail || "Failed to update user");
         throw new Error("Failed to update user");
     }
-    return res.json();
+    toast("Profile updated successfully");
+    return result;
 };
 
 export const downloadFileByName = async (filename: string, keyHex: string) => {
@@ -138,8 +149,9 @@ export const downloadFileByName = async (filename: string, keyHex: string) => {
     });
     console.log(res)
     if (!res.ok) {
-        toast("File could not be opened. Your secret key might be invalid.")
-        throw new Error("File could not be opened. Your secret key might be invalid.");
+        const result = await res.json();
+        toast(result.detail || "Failed to open file");
+        throw new Error("Failed to open file");
     }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
@@ -152,7 +164,8 @@ export const deleteFileByName = async (filename: string) => {
         credentials: 'include'
     });
     if (!res.ok) {
-        toast("Failed to delete file")
+        const result = await res.json();
+        toast(result.detail || "Failed to delete file");
         throw new Error("Failed to delete file");
     }
     return await res.json();
@@ -184,31 +197,29 @@ export async function getUserAlgo(): Promise<UserAlgoResponse> {
 };
 
 export const changeAlgorithm = async (newAlgo: string, key_hex: string) => {
-    try {
-        const res = await fetch(`${BACKEND_BASE_URL}/api/switch-algo`, {
-            method: 'POST',
-            credentials: 'include',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                algo: newAlgo,
-                key_hex: key_hex
-            }),
-        });
+    const res = await fetch(`${BACKEND_BASE_URL}/api/switch-algo`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            algo: newAlgo,
+            key_hex: key_hex
+        }),
+    });
 
-        if (!res.ok) {
-            throw new Error('Failed to change algorithm');
-        }
-
-        const data = await res.json();
-        console.log('Algorithm changed:', data.message);
-        return data;
-    } catch (err) {
-        toast("Failed to change algorithm ")
-        console.error('Failed to change algorithm:', err);
-        throw err; // A hiba továbbadásához
+    if (!res.ok) {
+        const result = await res.json();
+        toast(result.detail || "Failed to change algorithm");
+        console.error('Failed to change algorithm to', newAlgo);
+        throw new Error('Failed to change algorithm');
     }
+
+    const data = await res.json();
+    console.log(data.message);
+    toast(data.message)
+    return data;
 };
 
 export const genSecretKey = async (key_hex: string) => {
@@ -249,4 +260,4 @@ export async function verifySecretKey(keyHex: string): Promise<boolean> {
         console.error('Failed to verify secret key:', error);
         return false; // Hibás válasz esetén false-t adunk vissza
     }
-}
+};

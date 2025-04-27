@@ -2,12 +2,10 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Switch } from "./ui/switch";
-import { FaTrash } from "react-icons/fa";  // Szemetes ikon importálása
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { uploadFiles } from "@/lib/api";
 import { useKey } from "./KeyProvider";
-import { toast } from "sonner";
 
 interface FileUploadModalProps {
     onUploadComplete: () => void

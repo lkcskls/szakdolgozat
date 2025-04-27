@@ -17,14 +17,13 @@ import { Input } from "@/components/ui/input"
 import { registerUser } from "@/lib/api"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card"
-import { toast } from "sonner"
 
 const formSchema = z.object({
     name: z.string().min(5, {
-        message: "Username must be at least 5 characters.",
+        message: "Name must be at least 5 characters.",
     }),
     email: z.string().email({
-        message: "Incorrect email format.",
+        message: "Invalid email format.",
     }),
     password: z.string().min(8, {
         message: "Password must be at least 8 characters.",

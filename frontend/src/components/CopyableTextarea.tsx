@@ -28,7 +28,7 @@ export function CopyableTextarea({ text }: CopyableTextareaProps) {
             />
             <Button onClick={handleCopy} variant="secondary">
                 <Copy className="mr-2 h-4 w-4" />
-                Másolás
+                Copy
             </Button>
         </div>
     );
