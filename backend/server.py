@@ -115,7 +115,7 @@ def get_user_by_id(supabase: Client, user_id: str):
     try:
         response = supabase.table("user").select("*").eq("id", user_id).execute()
         users = response.data
-    except Exception as e:
+    except:
         raise HTTPException(status_code=500, detail=f"Database error")
 
     #nincs user az adott id-vel, vagy több is van
@@ -128,7 +128,7 @@ def get_user_by_email(supabase: Client, email: EmailStr):
     try:
         response = supabase.table("user").select("*").eq("email", email).execute()
         users = response.data
-    except Exception as e:
+    except:
         raise HTTPException(status_code=500, detail=f"Database error")
 
     #nincs user az adott email-lel, vagy több is van
@@ -413,13 +413,16 @@ async def edit_user(request: Request, name: Optional[str] = None, email: Optiona
     return {"message": "User updated successfully"}
 
 @app.get("/api/files")
-async def get_files(request: Request,):
+async def get_files(request: Request):
     #autentikáció
     user_id = authenticate_user(request.cookies.get("session_token"))
 
     #fájl adatok lekérése és visszaadása
-    result = supabase.table('files').select('*').eq('user_id', user_id).execute().data
-    return result
+    try:
+        response = supabase.table('files').select('*').eq('user_id', user_id).execute().data
+        return response
+    except:
+        raise HTTPException(status_code=500, detail=f"Database error")
 
 @app.delete("/api/files")
 async def delete_file(
@@ -473,9 +476,7 @@ async def upload(
 ):
     #autentikáció
     user_id = authenticate_user(request.cookies.get("session_token"))
-    user = supabase.table('user').select('*').eq('id', user_id).single().execute().data
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    user = get_user_by_id(supabase, user_id)
 
     #felhasználó utvonalának meghatározása, és ha kell létrehozása    
     user_directory = Path("uploads") / str(user["id"])
@@ -540,7 +541,6 @@ async def upload(
 
     #logok visszaadása
     return file_responses
-    return {"message": "Files processed successfully", "files": file_responses}
 
 @app.get("/api/download")
 async def download(
@@ -551,9 +551,7 @@ async def download(
     print('download')
     #autentikáció
     user_id = authenticate_user(request.cookies.get("session_token"))
-    user = supabase.table('user').select('*').eq('id', user_id).single().execute().data
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    user = get_user_by_id(supabase, user_id)
     
     #fájl adatainak lekérése
     result = supabase.table('files').select('*').eq('user_id', user_id).eq('filename', filename).execute().data
@@ -599,16 +597,13 @@ async def download(
 
 @app.get("/api/algos")
 async def get_algos():
-    #ALGOS visszaadása
     return ALGOS
 
-@app.get("/api/algo")
+@app.get("/api/encrypt-details")
 async def get_user_algo(request: Request):
     #autentikáció
     user_id = authenticate_user(request.cookies.get("session_token"))
-    user = supabase.table('user').select('*').eq('id', user_id).single().execute().data
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    user = get_user_by_id(supabase, user_id)
     
     #user algoritmusának és has_key paraméterének visszaadása
     return { "algo": user['algo'], "hasSecretKey": user['has_key']}
@@ -617,9 +612,7 @@ async def get_user_algo(request: Request):
 async def switch_algo(request: Request, algo_request: AlgoChangeRequest):
     #autentikáció
     user_id = authenticate_user(request.cookies.get("session_token"))
-    user = supabase.table('user').select('*').eq('id', user_id).single().execute().data
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    user = get_user_by_id(supabase, user_id)
     
     #megadott algoritmus ellenőrzése
     allowed_algos = [item['name'] for item in ALGOS]
@@ -664,21 +657,12 @@ async def switch_algo(request: Request, algo_request: AlgoChangeRequest):
 
         #log
         return JSONResponse(content={"message": f"Algorithm updated to {algo_request.algo}"})
-    
-    # A kulcsot nem bántjuk, egy kulccsal működik minden
-    # Van titkosított fájl?
-        # ha van => van titkos kulcs => megnézzük, hogy egyezik-e a megadottal
-            # ha egyezik => kititkosítani mindent, újratitkosítani mindent, firssíteni az algot
-            # ha nem => Error
-        # ha nincs => simán lecseréljük az algoritmus
-    
+
 @app.get("/api/gen-sk")
-async def gen_sk(request: Request, current_sk: Optional[str] = ""):
+async def gen_sk(request: Request):
     #autentikáció
     user_id = authenticate_user(request.cookies.get("session_token"))
-    user = supabase.table('user').select('*').eq('id', user_id).single().execute().data
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    user = get_user_by_id(supabase, user_id)
     
     #user-nek már van kulcsa
     if user['has_key']:
@@ -693,7 +677,7 @@ async def gen_sk(request: Request, current_sk: Optional[str] = ""):
         #adatbázis frissítése
         update_response = supabase.table('user').update({'has_key': True, 'secret_key_hash': hash_password(key_hex)}).eq('id', user_id).execute()
         if not update_response:
-            raise HTTPException(status_code=500, detail="Failed to update algorithm")
+            raise HTTPException(status_code=500, detail=f"Failed to update database")
         
         #kulcs visszaadása
         return key_hex
@@ -702,9 +686,7 @@ async def gen_sk(request: Request, current_sk: Optional[str] = ""):
 async def verify_sicret_key(request: Request, key_hex: str):
     #autentikáció
     user_id = authenticate_user(request.cookies.get("session_token"))
-    user = supabase.table('user').select('*').eq('id', user_id).single().execute().data
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    user = get_user_by_id(supabase, user_id)
     
     #validáció visszaadása
     return verify_password(key_hex, user['secret_key_hash'])

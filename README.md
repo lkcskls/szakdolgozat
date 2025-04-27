@@ -173,3 +173,10 @@ felhasználó kulcsának tárolására txt helyett: 1password
             # titkosítás az új kulccsal
             # régi kulcs hashének lecserélése az új hashére
 
+/api/swith-algo:
+#A kulcsot nem bántjuk, egy kulccsal működik minden
+    # Van titkosított fájl?
+        # ha van => van titkos kulcs => megnézzük, hogy egyezik-e a megadottal
+            # ha egyezik => kititkosítani mindent, újratitkosítani mindent, firssíteni az algot
+            # ha nem => Error
+        # ha nincs => simán lecseréljük az algoritmus

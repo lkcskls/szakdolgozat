@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { changeAlgorithm, getAlgos, getUserAlgo } from "@/lib/api"
+import { changeAlgorithm, getAlgos, getUserEncDetails } from "@/lib/api"
 import { useEffect, useState } from "react"
 import { Spinner } from "@/components/Spinner"
 import { useKey } from "@/components/KeyProvider"
@@ -37,7 +37,7 @@ export default function SettingsPage() {
                 setLoading(true)
                 const result = await getAlgos();
                 setAlgos(result);
-                const { algo, hasSecretKey } = await getUserAlgo();
+                const { algo, hasSecretKey } = await getUserEncDetails();
                 setUserAlgo(algo);
                 setHasKey(hasSecretKey);
             } catch (error) {
