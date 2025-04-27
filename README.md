@@ -165,5 +165,11 @@ A felhasználó által titkosított fájlok mindig egy algoritmussal, és egy ku
 - dockerizálás
 
 ## Jegyzetek:
-felhasználó kulcsának tárolására txt helyett: one password
+felhasználó kulcsának tárolására txt helyett: 1password
+
+#ha szeretnénk, hogy lehessen új kulcsot kérni:
+            # titkosított fájlok kititkosítása a régi kulccsal
+            # új kulcs generálás
+            # titkosítás az új kulccsal
+            # régi kulcs hashének lecserélése az új hashére
 

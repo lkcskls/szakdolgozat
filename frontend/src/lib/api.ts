@@ -158,8 +158,8 @@ export const downloadFileByName = async (filename: string, keyHex: string) => {
     window.open(url, "_blank");
 };
 
-export const deleteFileByName = async (filename: string) => {
-    const res = await fetch(`${BACKEND_BASE_URL}/api/files?filename=${filename}`, {
+export const deleteFileByName = async (filename: string, key_hex: string) => {
+    const res = await fetch(`${BACKEND_BASE_URL}/api/files?filename=${filename}&key_hex=${key_hex}`, {
         method: "DELETE",
         credentials: 'include'
     });

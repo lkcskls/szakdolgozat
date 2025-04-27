@@ -100,7 +100,7 @@ def is_filename_taken(filename: str, user_id: int) -> bool:
 def authenticate_user(session_token: str) -> int:
     #ha nincs session_token
     if not session_token or session_token=="":
-        raise HTTPException(status_code=401, detail="Not authenticated")
+        raise HTTPException(status_code=401, detail="Invalid session token")
 
     #session_token ellenőrzése
     session_data = verify_session(session_token)
@@ -110,6 +110,32 @@ def authenticate_user(session_token: str) -> int:
     #session_token-hez tartozó user_id visszaadása
     user_id = session_data["user_id"]
     return user_id
+
+def get_user_by_id(supabase: Client, user_id: str):
+    try:
+        response = supabase.table("user").select("*").eq("id", user_id).execute()
+        users = response.data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error")
+
+    #nincs user az adott id-vel, vagy több is van
+    if not users or len(users)>1:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return users[0]
+
+def get_user_by_email(supabase: Client, email: EmailStr):
+    try:
+        response = supabase.table("user").select("*").eq("email", email).execute()
+        users = response.data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error")
+
+    #nincs user az adott email-lel, vagy több is van
+    if not users or len(users)>1:
+        raise HTTPException(status_code=404, detail="Invalid email or password")
+    
+    return users[0]
 
 def encrypt_file(file_content: bytes, output_path: Path, key_hex: str, algo: str):
     #kulcs átalakítása
@@ -299,7 +325,7 @@ async def register(data: RegisterRequest):
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
 
     #jelszavak biztonságos mentése
-    password_hash =hash_password(password)
+    password_hash = hash_password(password)
     
     #új user elmentése
     new_user = {
@@ -309,20 +335,19 @@ async def register(data: RegisterRequest):
         'algo': DEFAULT_ALGO,
         'has_key': False,
     } 
-    supabase.table('user').insert(new_user).execute()
+    response = supabase.table('user').insert(new_user).execute().data
+    if not response:
+        raise HTTPException(status_code=400, detail="Failed to create user")
 
     return {'message': 'Registration successful'}
 
 @app.post("/api/login")
 async def login(data: LoginRequest, response: Response):
     #felhasználó lekérése email alapján
-    res = supabase.table("user").select("*").eq("email", data.email).execute().data
-    if not res:
-        raise HTTPException(status_code=401, detail="Invalid email or password")
-    user = res[0]
+    user = get_user_by_email(supabase, data.email)
 
     #felhasználó és a jelszó ellenőrzése
-    if not user or not verify_password(data.password, user['password_hash']):
+    if not verify_password(data.password, user['password_hash']):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     #session_token beállítása
@@ -343,26 +368,21 @@ async def get_user(request: Request):
     user_id = authenticate_user(request.cookies.get("session_token"))
 
     #felhasználó lekérése
-    user = supabase.table('user').select('*').eq('id', user_id).single().execute().data
+    user = get_user_by_id(supabase, user_id)
 
-    #user visszaadása ha létezik, különben 404
-    if user:
-        return {
-            'id': user['id'],
-            'name': user['name'], 
-            'email': user['email'], 
-            'algo': user['algo'], 
-        }
-    else: 
-        raise HTTPException(status_code=404, detail="User not found")
+    #user visszaadása
+    return {
+        'id': user['id'],
+        'name': user['name'], 
+        'email': user['email'], 
+        'algo': user['algo'], 
+    }
 
 @app.put("/api/user")
 async def edit_user(request: Request, name: Optional[str] = None, email: Optional[EmailStr] = None, password: Optional[str] = None):
     #autentikáció
     user_id = authenticate_user(request.cookies.get("session_token"))
-    user = supabase.table('user').select('*').eq('id', user_id).single().execute().data
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    user = get_user_by_id(supabase, user_id)
 
     update_data = {}
 
@@ -381,14 +401,14 @@ async def edit_user(request: Request, name: Optional[str] = None, email: Optiona
         hashed_password = hash_password(password)
         update_data["password_hash"] = hashed_password
 
-    #ha nem érkezett egy paraméter sem
+    #ha nem érkezett egy valid paraméter sem
     if not update_data:
         raise HTTPException(status_code=400, detail="No valid fields provided")
 
     #user frissítése
     response = supabase.table("user").update(update_data).eq("id", user["id"]).execute().data
     if not response:
-        raise HTTPException(status_code=500, detail="Database update failed")
+        raise HTTPException(status_code=500, detail="Failed to update database")
 
     return {"message": "User updated successfully"}
 
@@ -401,15 +421,15 @@ async def get_files(request: Request,):
     result = supabase.table('files').select('*').eq('user_id', user_id).execute().data
     return result
 
-# csak ha érvényes a key_hex, uuid törlése, csak filename
 @app.delete("/api/files")
 async def delete_file(
     request: Request, 
-    filename: Optional[str] = "",
-    uuid: Optional[str] = ""
+    filename: str,
+    key_hex: Optional[str] = "", 
 ):
     #autentikáció
     user_id = authenticate_user(request.cookies.get("session_token"))
+    user = get_user_by_id(supabase, user_id)
     
     #törlés filename alapján
     if filename != "":
@@ -418,6 +438,9 @@ async def delete_file(
         
         #ha létezik a fájl az adatbázisban
         if result:
+            if result[0]['encrypted'] and not verify_password(key_hex, user['secret_key_hash']):
+                raise HTTPException(status_code=401, detail="Invalid secret key")
+
             #fájl létezésének ellenőrzése a fájlrendszerben (uuid alapján)
             file_path = UPLOADS_DIR / str(user_id) / result[0]['uuid']
             if not file_path.exists():
@@ -438,38 +461,8 @@ async def delete_file(
         #ha nem létezik a fájl az adatbázisban
         else:
             raise HTTPException(status_code=404, detail=f"File not found")
-
-    #törlés uuid alapján
-    elif uuid != "":
-        #fájl lekérése fájlnév alapján
-        result = supabase.table('files').select('*').eq('user_id', user_id).eq('uuid', uuid).execute().data
-
-        #ha létezik a fájl az adatbázisban
-        if result:
-            #fájl létezésének ellenőrzése a fájlrendszerben (uuid alapján)
-            file_path = UPLOADS_DIR / str(user_id) / uuid
-            if not file_path.exists():
-                raise HTTPException(status_code=404, detail="File not found")
-            
-            #fájl törlése az adatbázisból (uuid alapján)
-            response = supabase.table("files").delete().eq("user_id", user_id).eq("uuid", uuid).execute()
-            if not response:
-                raise HTTPException(status_code=500, detail="Failed to delete record from database.")
-
-            #fájl törlése a fájlrendszerből (uuid alapján)
-            try:
-                os.remove(file_path)
-                return {"message": f"File '{uuid}' deleted successfully."}
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Error deleting file: {str(e)}")
-        
-        #ha nem létezik a fájl az adatbázisban
-        else:
-            raise HTTPException(status_code=404, detail=f"File not found")
-
-    #ha sem filename, sem uuid nem lett megadva
     else:
-        raise HTTPException(status_code=400, detail="No parameter given")
+        raise HTTPException(status_code=400, detail=f"Invalid filename")
 
 @app.post("/api/upload")
 async def upload(
@@ -678,12 +671,6 @@ async def switch_algo(request: Request, algo_request: AlgoChangeRequest):
             # ha egyezik => kititkosítani mindent, újratitkosítani mindent, firssíteni az algot
             # ha nem => Error
         # ha nincs => simán lecseréljük az algoritmus
-
-#ha szeretnénk, hogy lehessen új kulcsot kérni:
-            # titkosított fájlok kititkosítása a régi kulccsal
-            # új kulcs generálás
-            # titkosítás az új kulccsal
-            # régi kulcs hashének lecserélése az új hashére
     
 @app.get("/api/gen-sk")
 async def gen_sk(request: Request, current_sk: Optional[str] = ""):
@@ -726,93 +713,6 @@ async def verify_sicret_key(request: Request, key_hex: str):
 #######
 ########## DEPRACATED
 ####
-    
-@app.post("/api/algo")
-async def set_user_algo(request: Request, algo_request: AlgoChangeRequest):
-    user_id = authenticate_user(request.cookies.get("session_token"))
-    user = supabase.table('user').select('*').eq('id', user_id).single().execute().data
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Ellenőrizd, hogy benne van-e a támogatott algoritmusokban
-    allowed_algos = [item['name'] for item in ALGOS]
-    if algo_request.algo not in allowed_algos:
-        raise HTTPException(status_code=400, detail="Invalid algorithm")
-    
-    # Frissítés adatbázisban
-    update_response = supabase.table('user').update({'algo': algo_request.algo}).eq('id', user_id).execute()
-    if not update_response:
-        raise HTTPException(status_code=500, detail="Failed to update algorithm")
-
-    return JSONResponse(content={"message": f"Algorithm updated to {algo_request.algo}"})
-
-def generate_unique_filename(file_name: str) -> str:
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    name, ext = os.path.splitext(file_name)
-    return f"{name}_{timestamp}{ext}"
 
 def check_file_exists(file_path: str) -> bool:
     return os.path.exists(file_path)
-
-"""
-
-def encrypt_user_files(user_id: str, key: str, files_to_encrypt: list, algo: str):
-    #user mappájának ellenőrzése, ha kell létrehozása
-    user_upload_dir = os.path.join(UPLOADS_DIR, str(user_id))
-    os.makedirs(user_upload_dir, exist_ok=True)
-
-    #fájlok feldolgozása
-    for file in files_to_encrypt:
-        #fájlnév és útvonalak meghatározása
-        filename = file['uuid']
-        input_path = os.path.join(TEMP_DIR, filename)
-        output_path = os.path.join(user_upload_dir, filename)
-
-        #fájl létezésének ellenőrzése
-        if not os.path.exists(input_path):
-            print(f"Fájl nem található: {input_path}, kihagyva.")
-            continue
-
-        #titkosítás
-        try:
-            encrypt_file(input_path, output_path, key, algo)
-            print(f"Sikeresen titkosítva: {filename}")
-        except Exception as e:
-            #print(f"Hiba a {filename} titkosításakor: {e}")
-            raise RuntimeError(f"Hiba a {input_path} titkosításakor: {e}")
-        #átmeneti fájl törlése a temp mappából
-        finally:
-            # Törlés az input fájlról, hogy ne maradjon el a folyamat végén
-            if os.path.exists(input_path):
-                os.remove(input_path)
-                print(f"Átmeneti fájl törölve: {input_path}")
-
-                
-                
-def decrypt_user_files(user_id: str, key: str, encrypted_files: list, algo: str):
-    #átmeneti mappa ellenőrzése, ha kell létrehozása
-    os.makedirs(TEMP_DIR, exist_ok=True)
-
-    #fájlok feldolgozása
-    for file in encrypted_files:
-        #fájlnév és útvonalak meghatározása
-        filename = file['uuid']
-        input_path = os.path.join(UPLOADS_DIR, str(user_id), filename)
-        output_path = os.path.join(TEMP_DIR, filename)
-
-        #fájl létezésének ellenőrzése
-        if not os.path.exists(input_path):
-            raise RuntimeError(f"Fájl nem található: {input_path}")
-
-        #visszafejtés
-        try:
-            decrypt_file(input_path, output_path, key, algo)
-            print(f"Sikeresen kititkosítva: {filename}")
-        except Exception as e:
-            #print(f"Hiba a {filename} kititkosításakor: {e}")
-            raise RuntimeError(f"Hiba a {input_path} kititkosításakor: {e}")
-
-
-    #log
-    print(f"Minden fájl kititkosítva ide: {TEMP_DIR}")
-                """

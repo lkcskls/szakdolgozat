@@ -41,6 +41,26 @@ const DownloadButton = ({ file }: { file: FileTableData }) => {
     )
 }
 
+const DeleteButton = ({ file , onDataChanged}: { file: FileTableData, onDataChanged: () => void }) => {
+    const { keyHex } = useKey();
+
+    const handleDelete = async () => {
+        try {
+            await deleteFileByName(file.filename, keyHex)
+            // itt érdemes frissíteni a táblát vagy state-et is, ha kell
+            //alert(`${file.filename} deleted successfully`)
+            onDataChanged();
+        } catch (error) {
+            console.error(error)
+            //alert("Delete failed.")
+        }
+    }
+
+    return (
+        <DeleteFileButton onAction={handleDelete} />
+    )
+}
+
 export function columns(onDataChanged: () => void): ColumnDef<FileTableData>[] {
     return [
         {
@@ -63,7 +83,7 @@ export function columns(onDataChanged: () => void): ColumnDef<FileTableData>[] {
             header: "Uploaded",
             cell: ({ row }) => {
                 const date = new Date(row.original.created_at)
-                return date.toLocaleString()  // vagy pl. date-fns-szel formázva
+                return date.toLocaleString()
             },
         },
         {
@@ -71,22 +91,11 @@ export function columns(onDataChanged: () => void): ColumnDef<FileTableData>[] {
             header: "",
             cell: ({ row }) => {
                 const file = row.original
-
-                const handleDelete = async () => {
-                    try {
-                        await deleteFileByName(file.filename)
-                        // itt érdemes frissíteni a táblát vagy state-et is, ha kell
-                        //alert(`${file.filename} deleted successfully`)
-                        onDataChanged();
-                    } catch (error) {
-                        console.error(error)
-                        //alert("Delete failed.")
-                    }
-                }
-
+                
                 return (
-                    <DeleteFileButton onAction={handleDelete} />
+                    <DeleteButton file={file} onDataChanged={onDataChanged}/>
                 )
+
             }
         }
     ]

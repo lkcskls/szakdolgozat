@@ -15,12 +15,13 @@ import bcrypt
 import os
 
 
+
 #######
 ########## GLOBALS
 ####
 
 load_dotenv()
-SESSION_KEY = os.getenv('SESSION_KEY')  # Ezt tárold ENV változóban!
+SESSION_KEY = os.getenv('SESSION_KEY')
 SESSION_EXPIRY = 3600 # 1 órra
 serializer = URLSafeTimedSerializer(SESSION_KEY)
 
@@ -76,18 +77,10 @@ def delete_session_cookie(response: Response):
 
 
 #######
-########## BACKUP KEY FUNTIONS
-####
-
-def gen_backup_key(length: int = 16) -> str:
-    return secrets.token_hex(length // 2) 
-
-
-
-#######
 ########## ENCRYPTION-DECRYPTION
 ####
 
+#256 bites = 32 bájtos kulcsgenerálás
 def generate_key():
     return os.urandom(32)
 
