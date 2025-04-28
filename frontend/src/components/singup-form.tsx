@@ -33,7 +33,6 @@ const formSchema = z.object({
 export function SignUpForm() {
     const router = useRouter();
 
-    // 1. Define your form.
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
@@ -43,14 +42,12 @@ export function SignUpForm() {
         },
     })
 
-    // 2. Define a submit handler.
     async function onSubmit(values: z.infer<typeof formSchema>) {
         try {
             const res = await registerUser(values.name, values.email, values.password);
             console.log("Siker:", res);
 
-            // átirányítás pl. a homepage-re:
-            router.push("/login");  // router-t előbb hozd be: import { useRouter } from "next/navigation";
+            router.push("/login");
 
         } catch (err: unknown) {
             if (err instanceof Error) {

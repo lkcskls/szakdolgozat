@@ -32,20 +32,12 @@ export function LoginForm({
     setLoading(true);
 
     try {
-      const data = await loginUser(email, password)
-      console.log("Siker:", data);
-
+      await loginUser(email, password)
       router.push("/dashboard");
-
     }
-    catch (err: unknown) {
+    catch {
       setEmail("")
       setPassword("")
-      if (err instanceof Error) {
-        console.error("Hiba:", err.message)
-      } else {
-        console.error("Ismeretlen hiba:", err)
-      }
       setLoading(false)
     }
   }
