@@ -87,11 +87,13 @@ export const editUser = async (updateData: {
     name?: string;
     email?: string;
     password?: string;
+    newPassword?: string;
 }) => {
     const query = new URLSearchParams();
     if (updateData.name) query.append("name", updateData.name);
     if (updateData.email) query.append("email", updateData.email);
     if (updateData.password) query.append("password", updateData.password);
+    if (updateData.newPassword) query.append("new_password", updateData.newPassword);
 
     const res = await fetch(`${BACKEND_BASE_URL}/api/user?${query.toString()}`, {
         method: "PUT",

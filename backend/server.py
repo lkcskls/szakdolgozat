@@ -379,7 +379,7 @@ async def get_user(request: Request):
     }
 
 @app.put("/api/user")
-async def edit_user(request: Request, name: Optional[str] = None, email: Optional[EmailStr] = None, password: Optional[str] = None):
+async def edit_user(request: Request, name: Optional[str] = None, email: Optional[EmailStr] = None, password: Optional[str] = None, new_password: Optional[str] = None):
     #autentikáció
     user_id = authenticate_user(request.cookies.get("session_token"))
     user = get_user_by_id(supabase, user_id)
@@ -395,10 +395,12 @@ async def edit_user(request: Request, name: Optional[str] = None, email: Optiona
         if is_email_taken(email, user_id):
             raise HTTPException(status_code=400, detail="Email already in use")
         update_data["email"] = email
-    if password:
-        if len(password) < 8:
-            raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
-        hashed_password = hash_password(password)
+    if password and new_password:
+        if not verify_password(password, user['password_hash']):
+            raise HTTPException(status_code=401, detail="Invalid password")
+        if len(new_password) < 8:
+            raise HTTPException(status_code=400, detail="New password must be at least 8 characters")
+        hashed_password = hash_password(new_password)
         update_data["password_hash"] = hashed_password
 
     #ha nem érkezett egy valid paraméter sem
@@ -690,6 +692,7 @@ async def verify_sicret_key(request: Request, key_hex: str):
     
     #validáció visszaadása
     return verify_password(key_hex, user['secret_key_hash'])
+
 
 
 #######
