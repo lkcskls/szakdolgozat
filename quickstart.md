@@ -69,6 +69,26 @@
         TESZT:
         $BUILD_DIR/bin/openssl list -providers -verbose -provider oqsprovider
 
+### egyszerűbben:
+        https://www.linode.com/docs/guides/post-quantum-encryption-nginx-ubuntu2404/
+        
+        brew install openssl cmake ninja git
+
+        Válasszunk egy mappát, amiben:
+        git clone https://github.com/open-quantum-safe/oqs-provider.git
+        cd oqs-provider
+        scripts/fullbuild.sh
+        sudo cmake --install _build
+        scripts/runtests.sh
+
+        edit openssl.cnf
+                oqsprovider = oqsprovider_sect
+                [oqsprovider_sect] 
+                        activate = 1
+        
+        openssl list -providers
+        openssl list -kem-algorithms -provider oqsprovider | egrep -i "(kyber|kem)768"
+
 
 ## CA Certificate, hogy localhost-on tesztelhessük https-t (macOs Keychain Access)
 ### https://deliciousbrains.com/ssl-certificate-authority-for-local-https-development/

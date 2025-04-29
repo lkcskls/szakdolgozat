@@ -3,3 +3,4 @@ env
 uploads/*
 temp/*
 .DS_Store
+.env
