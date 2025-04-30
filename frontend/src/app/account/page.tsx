@@ -80,7 +80,8 @@ export default function TabsDemo() {
         try {
             const validated = userUpdateSchema.parse({ name, email });
             await editUser(validated)
-            getUser().then(setUser);
+            const newUser = await getUser()
+            setUser(newUser)
         }
         catch (err) {
             if (err instanceof z.ZodError) {

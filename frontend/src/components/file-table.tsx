@@ -31,9 +31,9 @@ const DownloadButton = ({ file }: { file: FileTableData }) => {
 
     return (
         <button
-            onClick={() => {
+            onClick={async() => {
                 try {
-                    downloadFileByName(file.filename, keyHex)
+                    await downloadFileByName(file.filename, keyHex)
                 }
                 catch (err) { console.log(err) }
             }}
