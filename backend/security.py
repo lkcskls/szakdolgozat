@@ -7,7 +7,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 from itsdangerous import URLSafeTimedSerializer
-from fastapi import Response
+from fastapi import HTTPException, Response
 from dotenv import load_dotenv
 from io import BytesIO
 import bcrypt
@@ -72,6 +72,20 @@ def delete_session_cookie(response: Response):
         samesite="Lax",
         path="/"
     )
+
+def authenticate_user(session_token: str) -> int:
+    #ha nincs session_token
+    if not session_token or session_token=="":
+        raise HTTPException(status_code=401, detail="Invalid session token")
+
+    #session_token ellenőrzése
+    session_data = verify_session(session_token)
+    if not session_data:
+        raise HTTPException(status_code=401, detail="Invalid or expired session")
+
+    #session_token-hez tartozó user_id visszaadása
+    user_id = session_data["user_id"]
+    return user_id
 
 
 

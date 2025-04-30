@@ -5,16 +5,14 @@
 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
-from contextlib import asynccontextmanager
 from supabase import create_client, Client
 from pydantic import BaseModel, EmailStr
-from security import hash_password, verify_password, set_session_cookie, delete_session_cookie, verify_session, generate_key, aes_encrypt_file, aes_decrypt_file, chacha20_encrypt_file, chacha20_decrypt_file
-from datetime import datetime
+from security import hash_password, verify_password, set_session_cookie, delete_session_cookie, generate_key, authenticate_user
+from services import decrypt_file, encrypt_file, is_email_taken, is_filename_taken, get_user_by_id, get_user_by_email, encrypt_user_files, decrypt_user_files, lifespan
 from fastapi import FastAPI, HTTPException, Response, Request, UploadFile, File
 from dotenv import load_dotenv
 from typing import Optional, List
 from pathlib import Path
-from io import BytesIO
 import shutil
 import uuid
 import os
@@ -28,8 +26,8 @@ import os
 load_dotenv()
 SUPABASE_URL    = os.getenv('SUPABASE_URL')
 SUPABASE_KEY    = os.getenv('SUPABASE_KEY')
-DEFAULT_ALGO    = 'AES_256'
-ALGOS           = [{'name': 'AES_256'}, {'name': 'ChaCha20'}]
+DEFAULT_ALGO    = 'AES-256'
+ALGOS           = [{'name': 'AES-256'}, {'name': 'ChaCha20'}]
 UPLOADS_DIR     = Path("uploads")
 TEMP_DIR        = Path("temp")
 
@@ -70,222 +68,6 @@ class AlgoChangeRequest(BaseModel):
 
 
 #######
-########## FUNCTIONS
-####
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    print("✅ Server: setup ready")
-
-    yield 
-    
-    print("🛑 Server: shutdown complete")
-
-def is_email_taken(email: EmailStr, user_id: int) -> bool:
-    #email keresése az adatbázisban, a felhasználó kizárásával
-    response = supabase.table("user").select("id").eq("email", email).neq("id", user_id).execute()
-    return len(response.data) > 0 
-
-def is_filename_taken(filename: str, user_id: int) -> bool:
-    response = (
-        supabase
-        .table("files")
-        .select("id")
-        .eq("filename", filename)
-        .eq("user_id", user_id)
-        .execute()
-    )
-    return len(response.data) > 0
-
-def authenticate_user(session_token: str) -> int:
-    #ha nincs session_token
-    if not session_token or session_token=="":
-        raise HTTPException(status_code=401, detail="Invalid session token")
-
-    #session_token ellenőrzése
-    session_data = verify_session(session_token)
-    if not session_data:
-        raise HTTPException(status_code=401, detail="Invalid or expired session")
-
-    #session_token-hez tartozó user_id visszaadása
-    user_id = session_data["user_id"]
-    return user_id
-
-def get_user_by_id(supabase: Client, user_id: str):
-    try:
-        response = supabase.table("user").select("*").eq("id", user_id).execute()
-        users = response.data
-    except:
-        raise HTTPException(status_code=500, detail=f"Database error")
-
-    #nincs user az adott id-vel, vagy több is van
-    if not users or len(users)>1:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    return users[0]
-
-def get_user_by_email(supabase: Client, email: EmailStr):
-    try:
-        response = supabase.table("user").select("*").eq("email", email).execute()
-        users = response.data
-    except:
-        raise HTTPException(status_code=500, detail=f"Database error")
-
-    #nincs user az adott email-lel, vagy több is van
-    if not users or len(users)>1:
-        raise HTTPException(status_code=404, detail="Invalid email or password")
-    
-    return users[0]
-
-def encrypt_file(file_content: bytes, output_path: Path, key_hex: str, algo: str):
-    #kulcs átalakítása
-    key_bytes = bytes.fromhex(key_hex)
-
-    #output létrehozása, ha nincs
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    #AES_256
-    if algo == "AES_256":
-        print('aes')
-        #fájl titkosítása és mentése az output_path-ra
-        try:
-            input_file = BytesIO(file_content)
-            encrypted_file = aes_encrypt_file(input_file, key_bytes)
-            with output_path.open("wb") as f:
-                shutil.copyfileobj(encrypted_file, f)
-        except Exception as e:
-            raise RuntimeError(f"encrypt_file: {e}")
-
-    #ChaCha20
-    elif algo == "ChaCha20":
-        print('chacha')
-        #fájl titkosítása és mentése az output_path-ra
-        try:
-            encrypted_file = chacha20_encrypt_file(BytesIO(file_content), key_bytes)
-            with output_path.open("wb") as output_file:
-                output_file.write(encrypted_file.read())
-        except Exception as e:
-            raise RuntimeError(f"encrypt_file: {e}")
-    
-    #egyéb algoritmus
-    else:
-        raise ValueError(f"Unsupported algorithm: {algo}")
-
-    #log
-    print(f"{output_path} encrypt sikeres.")
-
-def encrypt_user_files(user_id: str, key: str, files_to_encrypt: list, algo: str):
-    #user mappájának ellenőrzése, létrehozása ha nincs
-    user_upload_dir = Path(UPLOADS_DIR) / str(user_id)
-    user_upload_dir.mkdir(parents=True, exist_ok=True)
-
-    #fájlok feldolgozása
-    for file in files_to_encrypt:
-        #fájlnév és útvonalak meghatározása
-        filename = file['uuid']
-        input_path = TEMP_DIR / filename
-        output_path = user_upload_dir / filename
-
-        #fájl létezésének ellenőrzése
-        if not input_path.exists():
-            raise RuntimeError(f"Fájl nem található: {input_path}")
-
-        #titkosítás
-        try:
-            with input_path.open("rb") as f:
-                file_content = f.read()
-            encrypt_file(file_content, output_path, key, algo)
-            print(f"Sikeresen titkosítva: {filename}")
-        except Exception as e:
-            raise RuntimeError(f"Hiba a {input_path} titkosításakor: {e}")
-        finally:
-            #átmeneti fájl törlése
-            if input_path.exists():
-                input_path.unlink()
-                print(f"Átmeneti fájl törölve: {input_path}")
-
-    # log
-    print(f"Minden fájl titkosítva ide: {user_upload_dir}")
-
-
-
-    #log
-    print(f"Minden fájl titkosítva ide: {user_upload_dir}")
-
-def decrypt_file(input_path: Path, output_path: Path, key_hex: str, algo: str):
-    #fájl létezésének ellenőrzése
-    if not input_path.exists():
-        print('a')
-        raise FileNotFoundError(f"{input_path} can't be found")
-
-    #fájl megnyitása az input_path-ról 
-    with input_path.open("rb") as f:
-        file_content = f.read()
-
-    #output létrehozása, ha nincs
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    #kulcs átalakítása
-    key_bytes = bytes.fromhex(key_hex)
-
-    #AES_256
-    if algo == "AES_256":
-        print("aes")
-        #fájl visszafejtése és mentése az output_path-ra
-        try:
-            decrypted_file = aes_decrypt_file(BytesIO(file_content), key_bytes)
-            with output_path.open("wb") as decrypted_f:
-                decrypted_f.write(decrypted_file.read())
-        except Exception as e:
-            raise RuntimeError(f"encrypt_file: {e}")
-    
-    #ChaCha20
-    elif algo == "ChaCha20":
-        print("chacha")
-        #fájl visszafejtése és mentése az output_path-ra
-        try:
-            decrypted_file = chacha20_decrypt_file(BytesIO(file_content), key_bytes)
-            with output_path.open("wb") as output_file:
-                output_file.write(decrypted_file.read())
-        except Exception as e:
-            raise RuntimeError(f"encrypt_file: {e}")
-    
-    #egyéb algoritmus
-    else:
-        print('b')
-        raise ValueError(f"Unsupported algorithm: {algo}")
-
-    #log
-    print(f"{input_path} → {output_path} decrypt sikeres.")
-
-def decrypt_user_files(user_id: str, key: str, encrypted_files: list, algo: str):
-    # átmeneti mappa ellenőrzése, ha kell létrehozása
-    TEMP_DIR.mkdir(parents=True, exist_ok=True)
-
-    # fájlok feldolgozása
-    for file in encrypted_files:
-        # fájlnév és útvonalak meghatározása
-        filename = file['uuid']
-        input_path = Path(UPLOADS_DIR / str(user_id) / filename)
-        output_path = Path(TEMP_DIR / filename)
-
-        # fájl létezésének ellenőrzése
-        if not input_path.exists():
-            raise RuntimeError(f"Fájl nem található: {input_path}")
-
-        # visszafejtés
-        try:
-            decrypt_file(input_path, output_path, key, algo)
-            print(f"Sikeresen kititkosítva: {filename}")
-        except Exception as e:
-            raise RuntimeError(f"Hiba az {input_path} kititkosításakor: {e}")
-
-    # log
-    print(f"Minden fájl kititkosítva ide: {TEMP_DIR}")
-
-
-
-#######
 ########## SETUP
 ####
 
@@ -306,10 +88,6 @@ app.add_middleware(
 ########## ROUTES
 ####
 
-@app.get("/")
-async def root():
-    return {"admin": "Hello hacker! ;)"}
-
 @app.post("/api/register")
 async def register(data: RegisterRequest):
     name = data.name
@@ -317,7 +95,7 @@ async def register(data: RegisterRequest):
     password = data.password
 
     #input validáció
-    if is_email_taken(email, -1):
+    if is_email_taken(supabase, email, -1):
         raise HTTPException(status_code=400, detail="Email already in use")
     if len(name) < 5:
         raise HTTPException(status_code=400, detail="Name must be at least 5 characters")
@@ -392,7 +170,7 @@ async def edit_user(request: Request, name: Optional[str] = None, email: Optiona
             raise HTTPException(status_code=400, detail="Name must be at least 5 characters")
         update_data["name"] = name
     if email:
-        if is_email_taken(email, user_id):
+        if is_email_taken(supabase, email, user_id):
             raise HTTPException(status_code=400, detail="Email already in use")
         update_data["email"] = email
     if password and new_password:
@@ -497,7 +275,7 @@ async def upload(
             file_path = user_directory / new_filename
 
             #filename létezésének ellenőrzése
-            if is_filename_taken(file.filename, user_id):
+            if is_filename_taken(supabase, file.filename, user_id):
                 raise Exception("Filename already in use")
 
             #titkosított fájl esetén
@@ -630,10 +408,10 @@ async def switch_algo(request: Request, algo_request: AlgoChangeRequest):
         if user['has_key'] and verify_password(algo_request.key_hex, user['secret_key_hash']):
             try:
                 #user titkos fájljainak kititkosítása
-                decrypt_user_files(user_id, algo_request.key_hex, encrypted_files, user['algo'])
+                decrypt_user_files(user_id, algo_request.key_hex, encrypted_files, user['algo'], UPLOADS_DIR, TEMP_DIR)
 
                 #user titkos fájljainak újratitkosítása
-                encrypt_user_files(user_id, algo_request.key_hex, encrypted_files, algo_request.algo)
+                encrypt_user_files(user_id, algo_request.key_hex, encrypted_files, algo_request.algo, TEMP_DIR, UPLOADS_DIR)
 
                 #adatbázisban az algo frissítése
                 update_response = supabase.table('user').update({'algo': algo_request.algo}).eq('id', user_id).execute()
@@ -692,12 +470,3 @@ async def verify_sicret_key(request: Request, key_hex: str):
     
     #validáció visszaadása
     return verify_password(key_hex, user['secret_key_hash'])
-
-
-
-#######
-########## DEPRACATED
-####
-
-def check_file_exists(file_path: str) -> bool:
-    return os.path.exists(file_path)
