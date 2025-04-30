@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import threading
 from supabase import Client
 from security import aes_encrypt_file, aes_decrypt_file, chacha20_encrypt_file, chacha20_decrypt_file
 from pydantic import EmailStr
@@ -6,7 +7,8 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from io import BytesIO
 import shutil
-
+import time
+import os
 
 
 #######
@@ -16,11 +18,41 @@ import shutil
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("✅ Server: setup ready")
+    
+    thread = threading.Thread(
+        target=cleanup_folder, args=(5,"temp"), daemon=True
+    )
+    thread.start()
 
-    yield 
+    yield
     
     print("🛑 Server: shutdown complete")
 
+def cleanup_folder(wait_minutes=5, folder=None):
+    if folder is None:
+        return 0
+    while(True):
+        #jelenlegi fájlok lekárdezáse
+        initial_files = {
+            os.path.join(folder, f)
+            for f in os.listdir(folder)
+            if os.path.isfile(os.path.join(folder, f))
+        }
+
+        #várakozási idő
+        print(f"{len(initial_files)} fájl várakozik törlésre. ({wait_minutes} perc)")
+        time.sleep(wait_minutes * 60)
+
+        #a wait_minutes perce a mappában lévő fájlok törlése
+        deleted = []
+        for filepath in initial_files:
+            try:
+                os.remove(filepath)
+                deleted.append(filepath)
+            except Exception as e:
+                print(f"Nem sikerült törölni: {filepath} – {e}")
+
+        print(f"{len(deleted)} fájl sikeresen törölve")
 
 
 #######

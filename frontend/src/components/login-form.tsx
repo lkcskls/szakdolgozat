@@ -35,7 +35,8 @@ export function LoginForm({
       await loginUser(email, password)
       router.push("/dashboard");
     }
-    catch {
+    catch (err) {
+      console.log(err)
       setEmail("")
       setPassword("")
       setLoading(false)

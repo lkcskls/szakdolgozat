@@ -20,8 +20,11 @@ export default function Page() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const result = await getFiles();
-      setFiles(result);
+      try {
+        const result = await getFiles();
+        setFiles(result);
+      }
+      catch (err) { console.log(err) }
     };
 
     fetchData();
@@ -32,8 +35,11 @@ export default function Page() {
     setRefreshing(true)
     setLoading(true)
     setLoading(true)
-    const result = await getFiles();
-    setFiles(result);
+    try {
+      const result = await getFiles();
+      setFiles(result);
+    }
+    catch (err) { console.log(err) }
     setRefreshing(false)
     setLoading(false)
   };
@@ -60,12 +66,12 @@ export default function Page() {
                 <div className="flex items-center gap-2">
                   <FileUploadModal onUploadComplete={refreshFiles} />
                   <RefreshButton onClick={refreshFiles} isLoading={refreshing || loading} />
-                  <KeyInpupt/>
+                  <KeyInpupt />
                 </div>
 
                 {loading ? <>
                   <div className="container mx-auto py-10">
-                    <Spinner/>
+                    <Spinner />
                   </div>
                 </> : <>
                   <div className="container mx-auto py-10">

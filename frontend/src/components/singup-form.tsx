@@ -44,16 +44,14 @@ export function SignUpForm() {
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         try {
-            const res = await registerUser(values.name, values.email, values.password);
-            console.log("Siker:", res);
-
+            await registerUser(values.name, values.email, values.password);
             router.push("/login");
 
         } catch (err: unknown) {
             if (err instanceof Error) {
-                console.error("Hiba:", err.message)
+                console.log(err.message)
             } else {
-                console.error("Ismeretlen hiba:", err)
+                console.log("Unknown error:", err)
             }
         }
     }

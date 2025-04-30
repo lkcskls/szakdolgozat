@@ -19,8 +19,6 @@ import { deleteFileByName, downloadFileByName } from "@/lib/api"
 import DeleteFileButton from "./DeleteFileButton"
 import { useKey } from "./KeyProvider"
 
-// This type is used to define the shape of our data.
-// You can use a Zod schema here if you want.
 export type FileTableData = {
     id: string
     filename: string
@@ -33,7 +31,12 @@ const DownloadButton = ({ file }: { file: FileTableData }) => {
 
     return (
         <button
-            onClick={() => downloadFileByName(file.filename, keyHex)}
+            onClick={() => {
+                try {
+                    downloadFileByName(file.filename, keyHex)
+                }
+                catch (err) { console.log(err) }
+            }}
             className="text-blue-600 hover:underline"
         >
             {file.filename}
@@ -41,18 +44,15 @@ const DownloadButton = ({ file }: { file: FileTableData }) => {
     )
 }
 
-const DeleteButton = ({ file , onDataChanged}: { file: FileTableData, onDataChanged: () => void }) => {
+const DeleteButton = ({ file, onDataChanged }: { file: FileTableData, onDataChanged: () => void }) => {
     const { keyHex } = useKey();
 
     const handleDelete = async () => {
         try {
             await deleteFileByName(file.filename, keyHex)
-            // itt érdemes frissíteni a táblát vagy state-et is, ha kell
-            //alert(`${file.filename} deleted successfully`)
             onDataChanged();
         } catch (error) {
-            console.error(error)
-            //alert("Delete failed.")
+            console.log(error)
         }
     }
 
@@ -91,9 +91,9 @@ export function columns(onDataChanged: () => void): ColumnDef<FileTableData>[] {
             header: "",
             cell: ({ row }) => {
                 const file = row.original
-                
+
                 return (
-                    <DeleteButton file={file} onDataChanged={onDataChanged}/>
+                    <DeleteButton file={file} onDataChanged={onDataChanged} />
                 )
 
             }

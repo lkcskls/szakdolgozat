@@ -268,15 +268,15 @@ async def upload(
     for file in files:
         #fájl mentése
         try:
+            #filename létezésének ellenőrzése
+            if is_filename_taken(supabase, file.filename, user_id):
+                raise Exception("Filename already in use")
+            
             #file_path meghatározása (új fájlnév: uuid.kiterjesztés)
             file_uuid = str(uuid.uuid4())
             file_extension = Path(file.filename).suffix
             new_filename = f"{file_uuid}{file_extension}"
             file_path = user_directory / new_filename
-
-            #filename létezésének ellenőrzése
-            if is_filename_taken(supabase, file.filename, user_id):
-                raise Exception("Filename already in use")
 
             #titkosított fájl esetén
             if encrypted:
@@ -310,7 +310,6 @@ async def upload(
             #fájl adatainak feltöltése az adatbázisba
             res = supabase.table('files').insert({"filename": file.filename, "user_id": user_id, "encrypted": encrypted, "uuid": new_filename}).execute()
             if not res:
-#ha ez sikertelen, akkor törlődjön a mappájából, vagy addig le se mentődjön
                 raise HTTPException(500, 'Database error while updating files')
             
             #log
@@ -386,7 +385,7 @@ async def get_user_algo(request: Request):
     user = get_user_by_id(supabase, user_id)
     
     #user algoritmusának és has_key paraméterének visszaadása
-    return { "algo": user['algo'], "hasSecretKey": user['has_key']}
+    return { "algo": user['algo'], "has_secret_key": user['has_key']}
 
 @app.post("/api/switch-algo")
 async def switch_algo(request: Request, algo_request: AlgoChangeRequest):

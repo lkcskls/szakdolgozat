@@ -19,7 +19,7 @@ type UploadResult = {
 
 export default function FileUploadModal({ onUploadComplete }: FileUploadModalProps) {
     const [isOpen, setIsOpen] = useState(false);
-    const [files, setFiles] = useState<File[]>([]); // Több fájl kezelése
+    const [files, setFiles] = useState<File[]>([]);
     const [encrypted, setEncrypted] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const { keyHex, setKeyHex } = useKey();
@@ -57,14 +57,14 @@ export default function FileUploadModal({ onUploadComplete }: FileUploadModalPro
 
         try {
             const result = await uploadFiles(files, encrypted, keyHex);
-            setUploadResults(result);          //eredmények mentése
+            setUploadResults(result);
             setResultDialogOpen(true);
 
-            setIsOpen(false);  //bezárja a modált sikeres feltöltés után
-            setFiles([]);  //feltöltés után töröljük a fájlokat
+            setIsOpen(false); 
+            setFiles([]);
             onUploadComplete();
         } catch (err) {
-            console.error("Upload failed", err);
+            console.log(err);
         } finally {
             setIsUploading(false);
         }

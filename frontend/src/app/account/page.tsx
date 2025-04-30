@@ -51,8 +51,18 @@ export default function TabsDemo() {
 
 
     useEffect(() => {
-        setLoading(true);
-        getUser().then(setUser).then(() => setLoading(false));
+        const fetchUser = async () => {
+            setLoading(true);
+            try {
+                const data = await getUser();
+                setUser(data);
+                setLoading(false)
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
+        fetchUser();
     }, []);
 
     useEffect(() => {
@@ -63,12 +73,12 @@ export default function TabsDemo() {
     async function handleUpdateUser() {
         setLoading(true)
         setFormErrors({})
-        if( name === user.name && email === user.email){
+        if (name === user.name && email === user.email) {
             setLoading(false)
             return
         }
         try {
-            const validated = userUpdateSchema.parse({name, email});
+            const validated = userUpdateSchema.parse({ name, email });
             await editUser(validated)
             getUser().then(setUser);
         }
@@ -176,7 +186,7 @@ export default function TabsDemo() {
                                             <div className="space-y-1">
                                                 <Label htmlFor="name">New name</Label>
                                                 <Input id="name" value={name} onChange={(e) =>
-                                                    setName( e.target.value )
+                                                    setName(e.target.value)
                                                 } />
                                                 {formErrors.name && (
                                                     <p className="text-sm text-red-500">{formErrors.name}</p>
@@ -186,7 +196,7 @@ export default function TabsDemo() {
                                             <div className="space-y-1">
                                                 <Label htmlFor="email">New email</Label>
                                                 <Input id="email" value={email} onChange={(e) =>
-                                                    setEmail( e.target.value )
+                                                    setEmail(e.target.value)
                                                 } />
                                                 {formErrors.email && (
                                                     <p className="text-sm text-red-500">{formErrors.email}</p>
@@ -226,7 +236,7 @@ export default function TabsDemo() {
                                     </CardContent>
                                     <CardFooter>
                                         <Button disabled={loading} onClick={handleUpdatePassword}>Save password</Button>
-                                        
+
                                     </CardFooter>
                                 </Card>
                             </TabsContent>

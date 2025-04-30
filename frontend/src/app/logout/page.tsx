@@ -13,8 +13,8 @@ export default function LogoutPage() {
         const performLogout = async () => {
             try {
                 await logoutUser()
-            } catch (error) {
-                console.error("Logout error:", error)
+            } catch (err) {
+                console.log(err)
             } finally {
                 router.replace("/login")
             }

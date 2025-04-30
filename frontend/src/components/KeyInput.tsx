@@ -9,18 +9,21 @@ import { toast } from "sonner";
 
 export default function KeyInpupt() {
     const [input, setInput] = useState<string>("")
-    const {keyHex, setKeyHex} = useKey();
+    const { keyHex, setKeyHex } = useKey();
 
-    async function handleKeyHexSave(){
-        const valid = await verifySecretKey(input)
-        if(valid) {
-            setKeyHex(input)
-            toast("Secret key saved")
+    async function handleKeyHexSave() {
+        try {
+            const valid = await verifySecretKey(input)
+            if (valid) {
+                setKeyHex(input)
+                toast("Secret key saved")
+            }
+            else toast("Invalid secret key")
         }
-        else toast("Invalid secret key")
+        catch (err) { console.log(err) }
     }
 
-    function handleKeyHexRemove(){
+    function handleKeyHexRemove() {
         setKeyHex("")
         setInput("")
         toast("Secret key removed")
@@ -28,8 +31,8 @@ export default function KeyInpupt() {
 
     return (
         <div className="flex gap-2">
-            { keyHex === "" ? <>
-                <Input type="text"value={ input } onChange={(e) => setInput(e.target.value)} placeholder="Type your secret key here..." className="w-128"/>
+            {keyHex === "" ? <>
+                <Input type="text" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Type your secret key here..." className="w-128" />
                 <Button variant={"secondary"} onClick={handleKeyHexSave}>Save</Button>
             </> : <>
                 <Button variant={"secondary"} onClick={handleKeyHexRemove}>Remove secret key</Button>

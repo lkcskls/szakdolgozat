@@ -37,11 +37,11 @@ export default function SettingsPage() {
                 setLoading(true)
                 const result = await getAlgos();
                 setAlgos(result);
-                const { algo, hasSecretKey } = await getUserEncDetails();
+                const { algo, has_secret_key } = await getUserEncDetails();
                 setUserAlgo(algo);
-                setHasKey(hasSecretKey);
-            } catch (error) {
-                console.error("Hiba az algoritmusok lekérésekor:", error);
+                setHasKey(has_secret_key);
+            } catch (err) {
+                console.log(err);
             } finally {
                 setLoading(false)
             }
@@ -56,7 +56,7 @@ export default function SettingsPage() {
             await changeAlgorithm(selectedAlgo, keyHex)
             setUserAlgo(selectedAlgo)
         }
-        catch { }
+        catch (err) { console.log(err) }
         setUpdating(false)
     }
 

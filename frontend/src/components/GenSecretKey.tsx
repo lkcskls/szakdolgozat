@@ -22,8 +22,11 @@ export function GenSecretKey() {
         <Dialog onOpenChange={async (open) => {
             if (open) {
                 console.log("Dialog megnyílt!");
-                const key = await genSecretKey(keyHex)
-                setKeyHex(key);
+                try {
+                    const key = await genSecretKey(keyHex)
+                    setKeyHex(key);
+                }
+                catch (err) { console.log(err) }
             }
         }}>
             <DialogTrigger asChild>

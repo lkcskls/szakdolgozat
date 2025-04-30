@@ -15,7 +15,7 @@ export type User = {
 
 export type UserEncDetailsResponse = {
     algo: string;
-    hasSecretKey: boolean;
+    has_secret_key: boolean;
 };
 
 export const registerUser = async (name: string, email: string, password: string) => {
