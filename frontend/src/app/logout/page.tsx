@@ -9,6 +9,7 @@ import { LogOut } from "lucide-react"
 export default function LogoutPage() {
     const router = useRouter()
 
+    //kijelentkezés
     useEffect(() => {
         const performLogout = async () => {
             try {

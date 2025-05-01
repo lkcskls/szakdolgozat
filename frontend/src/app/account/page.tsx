@@ -50,6 +50,7 @@ export default function TabsDemo() {
     const [newPassword, setNewPassword] = useState<string>("")
 
 
+    //felhasználó adatainak lekérdezése betöltés után
     useEffect(() => {
         const fetchUser = async () => {
             setLoading(true);
@@ -70,6 +71,7 @@ export default function TabsDemo() {
         setEmail(user.email)
     }, [user]);
 
+    //felhasználó adatainak frissítése
     async function handleUpdateUser() {
         setLoading(true)
         setFormErrors({})
@@ -216,7 +218,7 @@ export default function TabsDemo() {
                                     <CardHeader>
                                         <CardTitle>Password</CardTitle>
                                         <CardDescription>
-                                            Change your password here. After saving, you will be logged out.
+                                            Change your password here
                                         </CardDescription>
                                     </CardHeader>
                                     <CardContent className="space-y-2">
@@ -237,7 +239,6 @@ export default function TabsDemo() {
                                     </CardContent>
                                     <CardFooter>
                                         <Button disabled={loading} onClick={handleUpdatePassword}>Save password</Button>
-
                                     </CardFooter>
                                 </Card>
                             </TabsContent>

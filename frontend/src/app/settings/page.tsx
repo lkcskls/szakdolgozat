@@ -31,6 +31,7 @@ export default function SettingsPage() {
     const [updating, setUpdating] = useState<boolean>(false);
     const { keyHex } = useKey();
 
+    //elérhető algoritmusok és a user adatainak lekérése betöltéskor
     useEffect(() => {
         const fetchAlgos = async () => {
             try {
@@ -50,7 +51,7 @@ export default function SettingsPage() {
         fetchAlgos();
     }, []);
 
-
+    //algoritmusváltás
     async function handleSave() {
         setUpdating(true)
         try {
@@ -61,6 +62,7 @@ export default function SettingsPage() {
         setUpdating(false)
     }
 
+    //user adatok frissítése kulcsgenerálás dialog bezárása után
     async function handleKeyGeneration() {
         try {
             setLoading(true)

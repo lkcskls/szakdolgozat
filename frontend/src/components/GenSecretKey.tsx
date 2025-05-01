@@ -21,16 +21,9 @@ type GenSecretKeyProps = {
 export function GenSecretKey({ onSuccess }: GenSecretKeyProps) {
     const { keyHex, setKeyHex } = useKey();
 
-    const handleGenerate = async () => {
-        try {
-            const key = await genSecretKey(keyHex)
-            setKeyHex(key);
-        }
-        catch (err) { console.log(err) }
-    }
-
     return (
         <Dialog onOpenChange={async (open) => {
+            //titkos kulcs generálás
             if (open) {
                 try {
                     const key = await genSecretKey(keyHex);
@@ -39,6 +32,7 @@ export function GenSecretKey({ onSuccess }: GenSecretKeyProps) {
                     console.error(err);
                 }
             }
+            //fallback függvény, felhasználói adatok frissítése
             else{
                 onSuccess();
             }

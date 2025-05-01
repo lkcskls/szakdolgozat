@@ -173,7 +173,6 @@
 ## /frontend:
         cd frontend
         npm i
-        npm run generate-types
         npm run dev
         
         or

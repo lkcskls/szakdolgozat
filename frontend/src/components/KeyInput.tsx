@@ -11,6 +11,7 @@ export default function KeyInpupt() {
     const [input, setInput] = useState<string>("")
     const { keyHex, setKeyHex } = useKey();
 
+    //kulcs mentése
     async function handleKeyHexSave() {
         try {
             const valid = await verifySecretKey(input)
@@ -23,6 +24,7 @@ export default function KeyInpupt() {
         catch (err) { console.log(err) }
     }
 
+    //kulcs törlése
     function handleKeyHexRemove() {
         setKeyHex("")
         setInput("")
@@ -30,9 +32,9 @@ export default function KeyInpupt() {
     }
 
     return (
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
             {keyHex === "" ? <>
-                <Input type="text" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Type your secret key here..." className="w-128" />
+                <Input type="text" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Type your secret key here..." className="min-w-0 flex-1 max-w-[600] w-full" style={{ minWidth: '350px' }} />
                 <Button variant={"secondary"} onClick={handleKeyHexSave}>Save</Button>
             </> : <>
                 <Button variant={"secondary"} onClick={handleKeyHexRemove}>Remove secret key</Button>

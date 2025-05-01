@@ -1,6 +1,7 @@
 # FastAPI és ASGI szerver
 fastapi
 uvicorn
+python-multipart
 
 # .env fájl olvasására
 dotenv
@@ -22,5 +23,4 @@ itsdangerous
 cryptography 
 
 # teszteléshez
-pytest 
-httpx
+pytest

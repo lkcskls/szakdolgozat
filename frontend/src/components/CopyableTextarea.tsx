@@ -12,6 +12,7 @@ type CopyableTextareaProps = {
 
 export function CopyableTextarea({ text }: CopyableTextareaProps) {
 
+    //a mező tartalmának vágólapra másolása
     const handleCopy = () => {
         navigator.clipboard.writeText(text)
             .then(() => toast.success("Copied"))

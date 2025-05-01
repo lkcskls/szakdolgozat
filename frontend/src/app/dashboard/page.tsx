@@ -18,6 +18,7 @@ export default function Page() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  //fájlok lekérése betöltéskor
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -31,6 +32,7 @@ export default function Page() {
     setLoading(false)
   }, []);
 
+  //táblázat frissítése
   const refreshFiles = async () => {
     setRefreshing(true)
     setLoading(true)
@@ -58,12 +60,12 @@ export default function Page() {
       <SidebarInset>
         <SiteHeader />
 
-        <div className="flex flex-1 flex-col">
-          <div className="@container/main flex flex-1 flex-col gap-2">
+        <div className="flex flex-1 flex-col overflow-x-hidden max-w-full">
+          <div className="@container/main container-type:inline-size flex flex-1 flex-col gap-2">
             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-              <div className="px-4 lg:px-6">
+              <div className="container px-4 sm:px-6 lg:px-8">
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap gap-2">
                   <FileUploadModal onUploadComplete={refreshFiles} />
                   <RefreshButton onClick={refreshFiles} isLoading={refreshing || loading} />
                   <KeyInpupt />
@@ -74,7 +76,7 @@ export default function Page() {
                     <Spinner />
                   </div>
                 </> : <>
-                  <div className="container mx-auto py-10">
+                  <div className="container mx-auto py-10 overflow-x-auto">
                     <DataTable columns={columns(refreshFiles)} data={files} onDataChanged={refreshFiles} />
                   </div>
                 </>}

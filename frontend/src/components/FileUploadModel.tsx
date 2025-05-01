@@ -23,34 +23,36 @@ export default function FileUploadModal({ onUploadComplete }: FileUploadModalPro
     const [encrypted, setEncrypted] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const { keyHex, setKeyHex } = useKey();
-
     const [uploadResults, setUploadResults] = useState<UploadResult[] | null>(null);
     const [resultDialogOpen, setResultDialogOpen] = useState(false);
 
+    //fájl hozzáadása a listához
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
-            // Több fájl hozzáadása a listához
             const newFiles = Array.from(e.target.files);
             setFiles((prevFiles) => [...prevFiles, ...newFiles]);
         }
         const fileInput = document.getElementById('file-upload') as HTMLInputElement;
         if (fileInput) {
-            fileInput.value = ''; // Reset the input field
+            fileInput.value = '';
         }
     };
 
+    //fájl eltávolítása a listából
     const handleFileRemove = (fileToRemove: File) => {
         setFiles((prevFiles) => prevFiles.filter((file) => file !== fileToRemove));
     };
 
+    //teljes lista törlése
     const handleClearInput = () => {
         const fileInput = document.getElementById('file-upload') as HTMLInputElement;
         if (fileInput) {
-            fileInput.value = ''; // Reset the input field
+            fileInput.value = '';
         }
-        setFiles([]); // Clear the files from state
+        setFiles([]);
     };
 
+    //feltöltés
     const handleUpload = async () => {
         if (files.length === 0) return;
         setIsUploading(true);

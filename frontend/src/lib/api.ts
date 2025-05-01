@@ -2,7 +2,7 @@ import { FileTableData } from "@/components/file-table";
 import { toast } from 'sonner'
 
 
-export const BACKEND_BASE_URL = "https://localhost";
+export const BACKEND_BASE_URL = "https://localhost"; //http://localhost:8000
 const MAX_UPLOAD_SIZE = 500 //Mb
 
 
@@ -141,7 +141,7 @@ export const deleteFileByName = async (filename: string, key_hex: string) => {
     return result;
 };
 
-export const uploadFiles = async (files: File[], encrypted: boolean, keyHex: string) => {
+export const uploadFiles = async (files: File[], encrypted: boolean, key_hex: string) => {
     if (files.length === 0) return;
 
     //fájlméret ellenőrzése
@@ -157,7 +157,7 @@ export const uploadFiles = async (files: File[], encrypted: boolean, keyHex: str
         formData.append("files", file);
     });
 
-    const res = await fetch(`${BACKEND_BASE_URL}/api/upload?encrypted=${encrypted}&key_hex=${keyHex}`, {
+    const res = await fetch(`${BACKEND_BASE_URL}/api/upload?encrypted=${encrypted}&key_hex=${key_hex}`, {
         method: "POST",
         body: formData,
         credentials: "include",
@@ -173,9 +173,8 @@ export const uploadFiles = async (files: File[], encrypted: boolean, keyHex: str
     return result;
 };
 
-export const downloadFileByName = async (filename: string, keyHex: string) => {
-    console.log(filename, keyHex)
-    const res = await fetch(`${BACKEND_BASE_URL}/api/download?filename=${filename}&key_hex=${keyHex}`, {
+export const downloadFileByName = async (filename: string, key_hex: string) => {
+    const res = await fetch(`${BACKEND_BASE_URL}/api/download?filename=${filename}&key_hex=${key_hex}`, {
         method: "GET",
         credentials: 'include'
     });
@@ -260,9 +259,9 @@ export const genSecretKey = async (key_hex: string) => {
     return result;
 };
 
-export async function verifySecretKey(keyHex: string): Promise<boolean> {
+export async function verifySecretKey(key_hex: string): Promise<boolean> {
     try {
-        const res = await fetch(`${BACKEND_BASE_URL}/api/verify-secret-key?key_hex=${keyHex}`, {
+        const res = await fetch(`${BACKEND_BASE_URL}/api/verify-secret-key?key_hex=${key_hex}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

@@ -18,6 +18,7 @@ import { registerUser } from "@/lib/api"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card"
 
+//validációs forma
 const formSchema = z.object({
     name: z.string().min(5, {
         message: "Name must be at least 5 characters.",
@@ -42,6 +43,7 @@ export function SignUpForm() {
         },
     })
 
+    //regisztráció
     async function onSubmit(values: z.infer<typeof formSchema>) {
         try {
             await registerUser(values.name, values.email, values.password);
