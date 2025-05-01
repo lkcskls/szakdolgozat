@@ -1,0 +1,26 @@
+# FastAPI és ASGI szerver
+fastapi
+uvicorn
+python-multipart
+
+# .env fájl olvasására
+dotenv
+
+# adatbázis
+supabase
+
+# adatok validálása
+pydantic
+pydantic[email]
+
+# hashelés
+bcrypt
+
+# session token
+itsdangerous
+
+# AES, ChaCha
+cryptography 
+
+# teszteléshez
+pytest

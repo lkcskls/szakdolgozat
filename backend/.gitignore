@@ -1,0 +1,7 @@
+*__pycache__
+*.pytest_cache
+env
+uploads/*
+temp/*
+.env
+*test_upload.txt
