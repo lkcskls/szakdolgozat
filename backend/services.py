@@ -97,7 +97,7 @@ def get_user_by_email(supabase: Client, email: EmailStr):
 
     #nincs user az adott email-lel, vagy több is van
     if not users or len(users)>1:
-        raise HTTPException(status_code=404, detail="Invalid email or password")
+        raise HTTPException(status_code=401, detail="Invalid email or password")
     
     return users[0]
 
