@@ -50,6 +50,7 @@ export default function SettingsPage() {
         fetchAlgos();
     }, []);
 
+
     async function handleSave() {
         setUpdating(true)
         try {
@@ -58,6 +59,17 @@ export default function SettingsPage() {
         }
         catch (err) { console.log(err) }
         setUpdating(false)
+    }
+
+    async function handleKeyGeneration() {
+        try {
+            setLoading(true)
+            const { algo, has_secret_key } = await getUserEncDetails();
+            setUserAlgo(algo);
+            setHasKey(has_secret_key);
+        }
+        catch (err) { console.log(err) }
+        finally { setLoading(false) }
     }
 
     return (
@@ -147,7 +159,8 @@ export default function SettingsPage() {
                                                             :
                                                             <>
                                                                 <Label htmlFor="genKey">Generate your secret key:</Label>
-                                                                <GenSecretKey></GenSecretKey>
+                                                                <GenSecretKey onSuccess={handleKeyGeneration}></GenSecretKey>
+                                                                <p><b>You can only generate a secret key once, so make sure not to lose it.</b></p>
                                                             </>
                                                         }
                                                         <p className="text-xs">Your files are all encrypted with one algorithm and one key. Changing either will cause every file to be re-encrypted.</p>

@@ -14,19 +14,33 @@ import { CopyableTextarea } from "./CopyableTextarea";
 import { useKey } from "./KeyProvider";
 import { genSecretKey } from "@/lib/api";
 
+type GenSecretKeyProps = {
+    onSuccess: () => Promise<void>;
+};
 
-export function GenSecretKey() {
+export function GenSecretKey({ onSuccess }: GenSecretKeyProps) {
     const { keyHex, setKeyHex } = useKey();
+
+    const handleGenerate = async () => {
+        try {
+            const key = await genSecretKey(keyHex)
+            setKeyHex(key);
+        }
+        catch (err) { console.log(err) }
+    }
 
     return (
         <Dialog onOpenChange={async (open) => {
             if (open) {
-                console.log("Dialog megnyílt!");
                 try {
-                    const key = await genSecretKey(keyHex)
+                    const key = await genSecretKey(keyHex);
                     setKeyHex(key);
+                } catch (err) {
+                    console.error(err);
                 }
-                catch (err) { console.log(err) }
+            }
+            else{
+                onSuccess();
             }
         }}>
             <DialogTrigger asChild>
