@@ -165,6 +165,10 @@
 
         uvicorn server:app --host 0.0.0.0 --port 8000 --reload
 
+        tesztek futtatása:
+                source env/bin/activate
+                PYTHONPATH=. pytest
+
 
 ## /frontend:
         cd frontend

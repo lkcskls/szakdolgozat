@@ -360,6 +360,8 @@ def test_encrypted_file_upload_invalid_sk(unique_user):
             "/api/upload", params={"encrypted":"True", "key_hex":"wrong_key_hex"},
             files={"files": (test_filename, f, "text/plain")}
         )
+    
+    os.remove(test_filename)
 
     assert response.status_code == 200
     result = response.json()
@@ -511,6 +513,8 @@ def test_switch_algo_with_encrypted_files_success(unique_user):
             "/api/upload", params={"encrypted":"True", "key_hex":key_hex},
             files={"files": (test_filename, f, "text/plain")}
         )
+    
+    os.remove(test_filename)
 
     #switch algo
     response = client.post("/api/switch-algo", json={"algo": "ChaCha20", "key_hex": key_hex})
@@ -550,6 +554,8 @@ def test_switch_algo_with_encrypted_files_invalid_sk(unique_user):
             files={"files": (test_filename, f, "text/plain")}
         )
 
+    os.remove(test_filename)
+
     #switch algo
     response = client.post("/api/switch-algo", json={"algo": "ChaCha20", "key_hex": "worng-key-hex"})
     assert response.status_code == 401
@@ -571,17 +577,20 @@ def test_switch_algo_with_no_encrypted_files(unique_user):
     session_token = login_response.cookies["session_token"]
     client.cookies.set("session_token", session_token)
 
-    #upload
     test_filename = "test_upload.txt"
     test_content = b"Teszt."
     with open(test_filename, "wb") as f:
         f.write(test_content)
     
+    #upload
     with open(test_filename, "rb") as f:
         response = client.post(
             "/api/upload", params={"encrypted":"True"},
             files={"files": (test_filename, f, "text/plain")}
         )
+
+    os.remove(test_filename)
+    
 
     #switch algo
     response = client.post("/api/switch-algo", json={"algo": "ChaCha20"})
