@@ -10,9 +10,9 @@ from pydantic import BaseModel, EmailStr
 from security import hash_password, verify_password, set_session_cookie, delete_session_cookie, generate_key, authenticate_user
 from services import decrypt_file, encrypt_file, is_email_taken, is_filename_taken, get_user_by_id, get_user_by_email, encrypt_user_files, decrypt_user_files, lifespan
 from fastapi import FastAPI, HTTPException, Response, Request, UploadFile, File
+from pathlib import Path
 from dotenv import load_dotenv
 from typing import Optional, List
-from pathlib import Path
 import shutil
 import uuid
 import os

@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Lukácsi Kolos szakdolgozat",
-  description: "Poszt-kvantum kriptográfiával védett fájltároló webszerver",
+  title: "Kolos Lukácsi Thesis",
+  description: "PQC File Storage",
 };
 
 

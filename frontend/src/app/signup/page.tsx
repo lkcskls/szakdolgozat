@@ -10,7 +10,7 @@ export default function Signup() {
                         <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
                             <GalleryVerticalEnd className="size-4" />
                         </div>
-                        Lukácsi Kolos Thesis
+                        Kolos Lukácsi Thesis
                     </a>
                     <SignUpForm />
                 </div>
